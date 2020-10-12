@@ -1,0 +1,760 @@
+---
+title: "Twitter_data_collection_and_analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+lazyLoad = TRUE
+#packages - use devtools or remotes for github versions
+library(easypackages)
+#basics
+if (!requireNamespace("BiocManager", quietly = TRUE)){
+    install.packages("BiocManager")
+}
+BiocManager::install("Biobase")
+library(Biobase)
+library(knitr)
+#text mining
+if (!requireNamespace("remotes", quietly = TRUE)) {
+    install.packages("remotes")
+  }
+remotes::install_github("ropensci/rtweet")
+library(rtweet)
+library(tidytext)
+#processing
+library(xlsx)
+library(plyr)
+library(stringi)
+library(stringr)
+library(DescTools)
+library(widyr)
+library(tidyr)
+library(igraph)
+library(ggraph)
+#sentiment analysis
+library(lexicon)
+library(saotd)
+library(sentimentr)
+remotes::install_github("nrguimaraes/sentimentSetsR")
+library(sentimentSetsR)
+library(SentimentAnalysis)
+library(textdata)
+#visualization
+library(extrafont)
+library(maps)
+library(data.table)
+library(raster)
+library(sp)
+library(maptools)
+library(ggplot2)
+library(ggspatial)
+library(rgdal)
+library(ggthemes)
+library(ggsn)
+library(dplyr)
+```
+
+```{r update}
+#update all packages - optional
+update.packages()
+```
+
+```{r premiumauth}
+#authenticate premium access via web browser
+premtoken = create_token(
+  app = "app_name",
+  consumer_key = "cons_key",
+  consumer_secret = "cons_sec",
+  access_token = "acc_tok",
+  access_secret = "acc_sec")
+```
+
+```{r checkauth}
+#check to see if the token is loaded
+identical(premtoken, get_token())
+```
+
+```{r gettweets}
+#get all tweets from 2019 containing keyword
+spider_tweets <- search_fullarchive("(spider OR spiders) lang:en place_country:US -spiderman -man -spiderverse -verse -marvel -mcu -tobey -maguire -shameik -moore -tom -holland -andrew -garfield -peter -parker -miles -morales -vein -veins -lily -lilies",
+n = 1000000, #set to 1 million or otherwise as many as possible
+fromDate = "201906010000", #Jan 01 2019 201901010000
+toDate = "201912312359", #Dec 31 2019 201912312359
+env_name = "spiders",
+safedir = NULL,
+parse = TRUE,
+token = NULL
+)
+```
+
+```{r exporttweets}
+#note: saving/reading may be a bit slow but must use read_twitter_csv rather than read or fread due to formatting
+#export
+save_as_csv(spider_tweets, "c:/Users/ges_student/Desktop/Julian/vBIG/spiders06062020BIGx", prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
+```
+
+```{r readtweets}
+#read
+spider_tweets1 <- read_twitter_csv("c:/Users/ges_student/Desktop/Julian/vBIG/spiders06062020BIG1.csv", unflatten = FALSE)
+spider_tweets2 <- read_twitter_csv("c:/Users/ges_student/Desktop/Julian/vBIG/spiders06062020BIG2.csv", unflatten = FALSE)
+spider_tweets3 <- read_twitter_csv("c:/Users/ges_student/Desktop/Julian/vBIG/spiders06062020BIG3.csv", unflatten = FALSE)
+spider_tweets4 <- read_twitter_csv("c:/Users/ges_student/Desktop/Julian/vBIG/spiders06062020BIG4.csv", unflatten = FALSE)
+spider_tweets5 <- read_twitter_csv("c:/Users/ges_student/Desktop/Julian/vBIG/spiders06062020BIG5.csv", unflatten = FALSE)
+spider_tweets6 <- read_twitter_csv("c:/Users/ges_student/Desktop/Julian/vBIG/spiders06062020BIG6.csv", unflatten = FALSE)
+spider_tweets7 <- read_twitter_csv("c:/Users/ges_student/Desktop/Julian/vBIG/spiders06062020BIG7.csv", unflatten = FALSE)
+spider_tweets8 <- read_twitter_csv("c:/Users/ges_student/Desktop/Julian/vBIG/spiders06062020BIG8.csv", unflatten = FALSE)
+spider_tweets9 <- read_twitter_csv("c:/Users/ges_student/Desktop/Julian/vBIG/spiders06062020BIG9.csv", unflatten = FALSE)
+#append
+spider_tweetsbind12 <- rbind(spider_tweets1, spider_tweets2)
+spider_tweetsbind34 <- rbind(spider_tweets3, spider_tweets4)
+spider_tweetsbind56 <- rbind(spider_tweets5, spider_tweets6)
+spider_tweetsbind78 <- rbind(spider_tweets7, spider_tweets8)
+spider_tweetsbind1234 <- rbind(spider_tweetsbind12, spider_tweetsbind34)
+spider_tweetsbind5678 <- rbind(spider_tweetsbind56, spider_tweetsbind78)
+spider_tweetsbind12345678 <- rbind(spider_tweetsbind1234, spider_tweetsbind5678)
+spider_tweetsbind <- rbind(spider_tweetsbind12345678, spider_tweets9)
+#clean up
+remove(spider_tweets1, spider_tweets2, spider_tweets3, spider_tweets4, spider_tweets5, spider_tweets6, spider_tweets7, spider_tweets8, spider_tweets9, spider_tweetsbind12, spider_tweetsbind34, spider_tweetsbind56, spider_tweetsbind78, spider_tweetsbind1234, spider_tweetsbind5678, spider_tweetsbind12345678)
+spider_tweets <- spider_tweetsbind
+remove(spider_tweetsbind)
+```
+
+```{r tweetduplicates}
+#check for identical tweets
+spider_tweets$textisunique <- isUnique(spider_tweets$text)
+cat(which(spider_tweets$textisunique == FALSE))
+cat('\n')
+cat("--------------------")
+cat('\n')
+#for each duplicate print and examine
+for(i in 1:nrow(spider_tweets)) {
+  
+  if(spider_tweets$textisunique[i] == FALSE){
+  cat(spider_tweets$text[i], spider_tweets$screen_name[i], spider_tweets$status_id[i], sep = '\n')
+    cat('\n')
+    cat("--------------------")
+    cat('\n')
+  }
+  else
+  {
+    i+1
+  }
+}
+#remove duplicates/unrelated topics
+spider_tweets_nodup <- subset(spider_tweets, 
+                         spider_tweets$screen_name !="redactedsn1" & 
+                           spider_tweets$screen_name !="redactedsn2" & 
+                           spider_tweets$screen_name !="redactedsn3" & 
+                           spider_tweets$screen_name !="redactedsn4" & 
+                           spider_tweets$screen_name !="redactedsn5" &
+                           spider_tweets$screen_name !="redactedsn6" &                                   spider_tweets$screen_name !="redactedsn7" &
+                           spider_tweets$screen_name !="redactedsn8" &
+                           spider_tweets$status_id !="redactedstatus1" &
+                           spider_tweets$status_id !="redactedstatus2" &
+                           spider_tweets$status_id !="redactedstatus3" &
+                           spider_tweets$status_id !="redactedstatus4" &
+                           spider_tweets$status_id !="redactedstatus5" &
+                           spider_tweets$status_id !="redactedstatus6" &
+                           spider_tweets$status_id !="redactedstatus7" &
+                           spider_tweets$status_id !="redactedstatus8" &
+                           spider_tweets$status_id !="redactedstatus9" &
+                           spider_tweets$text !="redactedtext1")
+#Redacted screen names are: accounts regarding streets/traffic, a band account that posted about one named Spider Rockets, a gaming account that posted about Spider-Gwen, a literary account that posted about the "Spider John Mystery" book series, a Tesla car account, a golf account that posted about a model of golf club called the TaylorMade Spider, a vintage decor account that posted about a tray with a spider design
+#rerun
+spider_tweets_nodup$textisunique <- isUnique(spider_tweets_nodup$text)
+cat(which(spider_tweets_nodup$textisunique == FALSE))
+for(i in 1:nrow(spider_tweets_nodup)) {
+  
+  if(spider_tweets_nodup$textisunique[i] == FALSE){
+  cat(spider_tweets_nodup$text[i], spider_tweets_nodup$screen_name[i], spider_tweets_nodup$status_id[i], sep = '\n')
+    cat('\n')
+    cat("--------------------")
+    cat('\n')
+  }
+  else
+  {
+    i+1
+  }
+}
+#clean up
+spider_tweets <- spider_tweets_nodup
+remove(spider_tweets_nodup)
+#started at 46070 observations -> ended at 46026
+```
+
+```{r spiderheroes}
+#detect Marvel tweets that were not already excluded from initial search
+spider_tweets$grepl1 <- grepl("Spider-Gwen", spider_tweets$text, ignore.case = TRUE)
+spider_tweets$grepl2 <- grepl("Spider Gwen", spider_tweets$text, ignore.case = TRUE)
+spider_tweets$grepl3 <- grepl("SpiderGwen", spider_tweets$text, ignore.case = TRUE)
+spider_tweets$grepl4 <- grepl("Gwensday", spider_tweets$text, ignore.case = TRUE)
+spider_tweets$grepl5 <- grepl("Spider-Woman", spider_tweets$text, ignore.case = TRUE)
+spider_tweets$grepl6 <- grepl("Spider-Womans", spider_tweets$text, ignore.case = TRUE)
+spider_tweets$grepl7 <- grepl("Spider Woman", spider_tweets$text, ignore.case = TRUE)
+spider_tweets$grepl8 <- grepl("SpiderWoman", spider_tweets$text, ignore.case = TRUE)
+spider_tweets$grepl9 <- grepl("Spider-Mans", spider_tweets$text, ignore.case = TRUE)
+spider_tweets$grepl10 <- grepl("Spider Man", spider_tweets$text, ignore.case = TRUE)
+#clean up
+spider_tweets_noheroes <- subset(spider_tweets, 
+                         spider_tweets$grepl1 !="TRUE" & 
+                           spider_tweets$grepl2 !="TRUE" & 
+                           spider_tweets$grepl3 !="TRUE" & 
+                           spider_tweets$grepl4 !="TRUE" & 
+                           spider_tweets$grepl5 !="TRUE" &
+                           spider_tweets$grepl6 !="TRUE" & 
+                           spider_tweets$grepl7 !="TRUE" & 
+                           spider_tweets$grepl8 !="TRUE" &                         
+                           spider_tweets$grepl9 !="TRUE" & 
+                           spider_tweets$grepl10 !="TRUE")
+spider_tweets_noheroes2 <- subset(spider_tweets_noheroes, select=-c(grepl1, grepl2, grepl3, grepl4, grepl5, grepl6, grepl7, grepl8, grepl9, grepl10))
+spider_tweets <- spider_tweets_noheroes2
+remove(spider_tweets_noheroes, spider_tweets_noheroes2)
+#started at 46026 observations -> ended at 45181
+```
+
+```{r coords}
+#separate bbox_coords and delete duplicates
+spider_tweets_sep <- separate(spider_tweets, bbox_coords, into = c("maxlongX", "delete1", "minlongX", "delete2", "minlatY", "maxlatY", "delete3", "delete4"), sep = " ", remove = FALSE)
+spider_tweets_sep <- subset(spider_tweets_sep, select = -c(delete1, delete2, delete3, delete4))
+#convert new columns to numeric
+spider_tweets_sep <- transform(spider_tweets_sep, minlongX = as.numeric(minlongX), maxlongX = as.numeric(maxlongX), minlatY = as.numeric(minlatY), maxlatY = as.numeric(maxlatY))
+#get bounding box centroids
+spider_tweets_sep$lon <- (spider_tweets_sep$minlongX+spider_tweets_sep$maxlongX)/2
+spider_tweets_sep$lat <- (spider_tweets_sep$minlatY+spider_tweets_sep$maxlatY)/2
+#drop NAs
+table(is.na(spider_tweets_sep$lon))
+table(is.na(spider_tweets_sep$lat))
+spider_tweets_sep$isna <- is.na(spider_tweets_sep$lon)
+spider_tweets_nonacoords <- subset(spider_tweets_sep, spider_tweets_sep$isna != "TRUE")
+#started at 45181 observations -> ended at 45150
+#clean up
+spider_tweets <- spider_tweets_nonacoords
+spider_tweets <- subset(spider_tweets, select = -c(isna))
+remove(spider_tweets_sep, spider_tweets_nonacoords)
+```
+
+```{r cleanexport}
+#export
+save_as_csv(spider_tweets, driver="CSV", "c:/Users/ges_student/Desktop/Julian/vBIG/spiders06062020BIGclean")
+```
+
+```{r cleanread}
+#read
+spider_tweets <- read_twitter_csv("c:/Users/ges_student/Desktop/Julian/vBIG/spiders06062020BIGclean.csv")
+```
+
+```{r tweetstates}
+#determine how many tweets are available at various levels
+table(spider_tweets$place_type == "admin")
+table(spider_tweets$place_type == "city")
+table(spider_tweets$place_type == "neighborhood")
+table(spider_tweets$place_type == "poi")
+#variable for non-"City, State" or "State, Country" format entries
+spider_tweets$hascomma <- grepl(",", spider_tweets$place_full_name, fixed = TRUE)
+table(spider_tweets$hascomma)
+#return such entries
+for(i in 1:nrow(spider_tweets)) {
+  if(spider_tweets$hascomma[i] == FALSE){
+  cat(spider_tweets$place_full_name[i], spider_tweets$place_type[i], spider_tweets$status_id[i], sep = '\n')
+    cat('\n')
+    cat("--------------------")
+    cat('\n')
+  }
+  else
+  {
+    i+1
+  }
+}
+#use ggplot data to fill in locations for non-"City, State" or "State, Country" format entries
+#bring latlong columns to front of data table and add default Twitter projection - WGS84
+spider_tweets_reordered <- spider_tweets[c(96, 97, 1:95, 98)]
+coordinates(spider_tweets_reordered) <- ~lon+lat
+WGS84_proj = "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
+proj4string(spider_tweets_reordered) <- CRS(WGS84_proj)
+#get states
+usa_basemap <- getData('GADM', country='USA', level=1)
+#clean up
+usa_basemap2 <- subset(usa_basemap, select=-c(GID_0, NAME_0, GID_1, VARNAME_1, NL_NAME_1, TYPE_1, ENGTYPE_1, CC_1, HASC_1))
+usa_basemap <- usa_basemap2
+remove(usa_basemap2)
+#check for spatial overlap - http://www.nickeubank.com/wp-content/uploads/2015/10/RGIS2_MergingSpatialData_part1_Joins.html#spatial-spatial
+spider_tweets_reordered$stateinUSA <- over(spider_tweets_reordered, usa_basemap)
+#clean up
+spider_tweets_reordered2 <- bind_cols(spider_tweets_reordered@data, spider_tweets_reordered@data[["stateinUSA"]])
+spider_tweets_reordered <- spider_tweets_reordered2
+remove(spider_tweets_reordered2)
+spider_tweets_reordered <- as.data.frame(spider_tweets_reordered)
+spider_tweets_reordered <- subset(spider_tweets_reordered, select=-c(stateinUSA))
+spider_tweets_reordered$stateinUSA <- spider_tweets_reordered$NAME_1
+spider_tweets_reordered <- subset(spider_tweets_reordered, select=-c(NAME_1))
+```
+
+```{r spidermonkeys}
+#detect tweets about spider monkeys
+spider_tweets_reordered$grepl1 <- grepl("monkey", spider_tweets_reordered$text, ignore.case = TRUE)
+#clean up
+spider_tweets_nomonkeys <- subset(spider_tweets_reordered, 
+                         spider_tweets_reordered$grepl1 !="TRUE")
+spider_tweets_nomonkeys2 <- subset(spider_tweets_nomonkeys, select=-c(grepl1))
+spider_tweets_reordered <- spider_tweets_nomonkeys2
+remove(spider_tweets_nomonkeys, spider_tweets_nomonkeys2)
+#started at 45150 observations -> ended at 44580
+```
+
+```{r locatedexport}
+#export
+save_as_csv(spider_tweets_reordered, "C:/Users/ges_student/Desktop/quickzip/spiders06062020BIGlocated.csv", prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
+```
+
+```{r locatedread}
+#read
+spider_tweets_reordered <- read_twitter_csv("C:/Users/Julian/Downloads/R_files/data/spiders06062020BIGlocated.csv", unflatten = FALSE)
+#put back into spatial format
+spider_tweets_reordered$minlongX <- as.numeric(spider_tweets_reordered$minlongX)
+spider_tweets_reordered$maxlongX <- as.numeric(spider_tweets_reordered$maxlongX)
+spider_tweets_reordered$minlatY <- as.numeric(spider_tweets_reordered$minlatY)
+spider_tweets_reordered$maxlatY <- as.numeric(spider_tweets_reordered$maxlatY)
+spider_tweets_reordered$centlongX <- (spider_tweets_reordered$minlongX+spider_tweets_reordered$maxlongX)/2
+spider_tweets_reordered$centlatY <- (spider_tweets_reordered$minlatY+spider_tweets_reordered$maxlatY)/2
+spider_tweets_reordered$lon <- spider_tweets_reordered$centlongX
+spider_tweets_reordered$lat <- spider_tweets_reordered$centlatY
+coordinates(spider_tweets_reordered) <- ~lon+lat
+WGS84_proj = "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
+proj4string(spider_tweets_reordered) <- CRS(WGS84_proj)
+```
+
+```{r doesfollow}
+#per Timothy Sparklin, Office of Research Protections and Compliance @ UMBC: One of our privacy tests we use asks if anyone on the research team (including the advisor) has a previous or existing relationship with any of the known tweet author(s). You may or may not know if such a relationship exists, but given the specific topic (medically-important spiders) and even if the tweet source data is public, it's important to know if anyone is a visitor or follower of potential authors. If yes, it's recommended that you no longer be a visitor/follower as you would be actively collecting data from the Twitter feed. This is not a regulatory requirement, but an ethical recommendation that recognizes that an expectation of privacy may exist. If you are following anyone related to the data collected on this topic, they should be unfollowed for the duration of the research.
+spider_tweets_reordered <- read_twitter_csv("c:/Users/ges_student/Desktop/Julian/vBIG/spiders06062020BIGlocated.csv", unflatten = FALSE)
+following_list <- read.csv("c:/Users/ges_student/Desktop/Julian/following_list.csv")
+doesfollow <- (spider_tweets_reordered$screen_name %in% following_list$following)
+for(i in 1:nrow(spider_tweets_reordered)) {
+  if(spider_tweets_reordered$screen_name[i] %in% following_list$following == TRUE){
+  cat(spider_tweets_reordered$screen_name[i], sep = '\n')
+    cat('\n')
+    cat("--------------------")
+    cat('\n')
+  }
+  else
+  {
+    i+1
+  }
+}
+```
+
+```{r repairNA}
+#repair NA values for stateinUSA
+#get NA
+spider_tweets_reordered@data$stateisNA <- is.na(spider_tweets_reordered@data$stateinUSA)
+spider_tweets_reordered_repairing <- spider_tweets_reordered@data
+#put back into spatial format
+spider_tweets_reordered_repairing$minlongX <- as.numeric(spider_tweets_reordered_repairing$minlongX)
+spider_tweets_reordered_repairing$maxlongX <- as.numeric(spider_tweets_reordered_repairing$maxlongX)
+spider_tweets_reordered_repairing$minlatY <- as.numeric(spider_tweets_reordered_repairing$minlatY)
+spider_tweets_reordered_repairing$maxlatY <- as.numeric(spider_tweets_reordered_repairing$maxlatY)
+spider_tweets_reordered_repairing$centlongX <- (spider_tweets_reordered_repairing$minlongX+spider_tweets_reordered_repairing$maxlongX)/2
+spider_tweets_reordered_repairing$centlatY <- (spider_tweets_reordered_repairing$minlatY+spider_tweets_reordered_repairing$maxlatY)/2
+spider_tweets_reordered_repairing$lon <- spider_tweets_reordered_repairing$centlongX
+spider_tweets_reordered_repairing$lat <- spider_tweets_reordered_repairing$centlatY
+coordinates(spider_tweets_reordered_repairing) <- ~lon+lat
+WGS84_proj = "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
+proj4string(spider_tweets_reordered_repairing) <- CRS(WGS84_proj)
+#plot
+usa_plot <- ggplot() +
+  borders("state", colour = "gray85", fill = "gray80") +
+  theme_map()
+usa_plot +
+  geom_point(data = spider_tweets_reordered_repairing@data, aes(x = centlongX, y = centlatY),colour = 'blue', alpha = .10) +
+  coord_sf(crs = WGS84_proj, xlim=c(-124.7, -67.1), ylim = c(25.2, 49.4)) + scale_size_continuous(range = c(1, 8), breaks = c(250, 500, 750, 1000)) +
+  labs(title = "Locations of spider tweets (January 1 2019-December 31 2019)") + theme(plot.title = element_text(hjust = 0.5)) +
+  annotation_scale(location = "bl", line_width = 0.5) + annotation_north_arrow(style = north_arrow_fancy_orienteering, location = "br", which_north = "true")
+#get unique places
+table(spider_tweets_reordered_repairing$place_full_name)
+#get place names
+spider_tweets_reordered_repairing$gsub <- gsub(",.*$", "", spider_tweets_reordered_repairing$place_full_name)
+#remove areas outside of the 49 continental states + Hawaii
+spider_tweets_reordered_repairing <- subset(spider_tweets_reordered_repairing, 
+                         spider_tweets_reordered_repairing$gsub !="Adjuntas" &
+                           spider_tweets_reordered_repairing$gsub !="Andersen Air Force Base" &
+                           spider_tweets_reordered_repairing$gsub !="Angeles" &
+                           spider_tweets_reordered_repairing$gsub !="Arecibo" &
+                           spider_tweets_reordered_repairing$gsub !="Astumbo" &
+                           spider_tweets_reordered_repairing$gsub !="Bajura Afuera" &
+                           spider_tweets_reordered_repairing$gsub !="Cacaos" &
+                           spider_tweets_reordered_repairing$gsub !="Camaceyes" &
+                           spider_tweets_reordered_repairing$gsub !="Carolina" &
+                           spider_tweets_reordered_repairing$gsub !="Culebra" &
+                           spider_tweets_reordered_repairing$gsub !="Dorado" &
+                           spider_tweets_reordered_repairing$gsub !="Dos Bocas" &
+                           spider_tweets_reordered_repairing$gsub !="El Cinco" &
+                           spider_tweets_reordered_repairing$gsub !="Frederiksted" &
+                           spider_tweets_reordered_repairing$gsub !="Guaynabo" &
+                           spider_tweets_reordered_repairing$gsub !="Hormigueros" &
+                           spider_tweets_reordered_repairing$gsub !="Isla Verde" &
+                           spider_tweets_reordered_repairing$gsub !="Luis M. Cintrón" &
+                            spider_tweets_reordered_repairing$gsub !="Machuelo Abajo" &
+                           spider_tweets_reordered_repairing$gsub !="Mameyes II" &
+                           spider_tweets_reordered_repairing$gsub !="Mayagüez" &
+                         spider_tweets_reordered_repairing$gsub !="Monte Llano" &
+                           spider_tweets_reordered_repairing$gsub !="Montones" &
+                           spider_tweets_reordered_repairing$gsub !="Naguabo" &
+                           spider_tweets_reordered_repairing$gsub !="Pueblo Viejo" &
+                           spider_tweets_reordered_repairing$gsub !="Puerto Ferro" &
+                           spider_tweets_reordered_repairing$gsub !="Salinas" &
+                           spider_tweets_reordered_repairing$gsub !="San Juan" &
+                           spider_tweets_reordered_repairing$gsub !="Tumon" &
+                           spider_tweets_reordered_repairing$gsub !="Tutu" &
+                           spider_tweets_reordered_repairing$gsub !="Virgin Islands")
+#remove tweets not located any further than the country level
+spider_tweets_reordered_repairing <- subset(spider_tweets_reordered_repairing, 
+                         spider_tweets_reordered_repairing$place_full_name !="United States")
+#assign state names based on gsub for "state, USA" format
+for(i in 1:nrow(spider_tweets_reordered_repairing@data)) {
+  if(spider_tweets_reordered_repairing@data$gsub[i] == "Alaska" || spider_tweets_reordered_repairing@data$gsub[i] == "Delaware" || spider_tweets_reordered_repairing@data$gsub[i] == "Florida" || spider_tweets_reordered_repairing@data$gsub[i] == "Hawaii" || spider_tweets_reordered_repairing@data$gsub[i] == "New York"){
+  spider_tweets_reordered_repairing@data$stateinUSA[i] <- spider_tweets_reordered_repairing@data$gsub[i]
+  }
+  else
+  {
+    i+1
+  }
+}
+#assign state names based on strright for "city, state" format
+spider_tweets_reordered_repairing@data$strright <- StrRight(spider_tweets_reordered_repairing@data$place_full_name, n=2)
+for(i in 1:nrow(spider_tweets_reordered_repairing@data)) {
+  if(spider_tweets_reordered_repairing@data$strright[i] == 'AL'){
+  spider_tweets_reordered_repairing@data$stateinUSA[i] <- "Alabama"
+  }
+  else if(spider_tweets_reordered_repairing@data$strright[i] == 'CA'){
+  spider_tweets_reordered_repairing@data$stateinUSA[i] <- "California"
+  }
+  else if(spider_tweets_reordered_repairing@data$strright[i] == 'FL'){
+  spider_tweets_reordered_repairing@data$stateinUSA[i] <- "Florida"    
+  }
+  else if(spider_tweets_reordered_repairing@data$strright[i] == 'HI'){
+  spider_tweets_reordered_repairing@data$stateinUSA[i] <- "Hawaii"    
+  }
+  else if(spider_tweets_reordered_repairing@data$strright[i] == 'MA'){
+  spider_tweets_reordered_repairing@data$stateinUSA[i] <- "Massachusetts"    
+  }
+  else if(spider_tweets_reordered_repairing@data$strright[i] == 'MS'){
+  spider_tweets_reordered_repairing@data$stateinUSA[i] <- "Mississippi"    
+  }
+  else if(spider_tweets_reordered_repairing@data$strright[i] == 'NC'){
+  spider_tweets_reordered_repairing@data$stateinUSA[i] <- "North Carolina"    
+  }
+  else if(spider_tweets_reordered_repairing@data$strright[i] == 'WA'){
+  spider_tweets_reordered_repairing@data$stateinUSA[i] <- "Washington"    
+  }
+  else
+  {
+    i+1
+  }
+}
+#check for any further NA values
+spider_tweets_reordered_repairing@data$stateisNA <- is.na(spider_tweets_reordered_repairing@data$stateinUSA)
+for(i in 1:nrow(spider_tweets_reordered_repairing@data)) {
+  if(spider_tweets_reordered_repairing@data$stateisNA[i] == TRUE){
+  cat(spider_tweets_reordered_repairing@data$place_full_name[i], sep = '\n')
+    cat('\n')
+    cat("--------------------")
+    cat('\n')
+  }
+  else
+  {
+    i+1
+  }
+}
+```
+
+```{r fixtrigrams}
+#remove unrelated/long reply threads causing trigram to contain large amounts of @s
+spider_tweets_reordered$grepltri <- grepl("bacontwo4actual", spider_tweets_reordered$text, ignore.case = TRUE)
+spider_tweets_reordered$grepltri2 <- grepl("nasaclimate", spider_tweets_reordered$text, ignore.case = TRUE)
+spider_tweets_reordered$grepltri3 <- grepl("touchofchaos", spider_tweets_reordered$text, ignore.case = TRUE)
+spider_tweets_reordered$grepltri4 <- grepl("okcmomforyang", spider_tweets_reordered$text, ignore.case = TRUE)
+spider_tweets_reordered$grepltri5 <- grepl("wordwulf", spider_tweets_reordered$text, ignore.case = TRUE)
+spider_tweets_reordered$grepltri6 <- grepl("ballroom", spider_tweets_reordered$text, ignore.case = TRUE)
+spider_tweets_nolongreplies <- subset(spider_tweets_reordered, spider_tweets_reordered$grepltri !="TRUE" & spider_tweets_reordered$grepltri2 != "TRUE" & spider_tweets_reordered$grepltri3 != "TRUE" & spider_tweets_reordered$grepltri4 != "TRUE" & spider_tweets_reordered$grepltri5 != "TRUE" & spider_tweets_reordered$grepltri6 != "TRUE")
+spider_tweets_nolongreplies2 <- subset(spider_tweets_nolongreplies, select=-c(grepltri, grepltri2, grepltri3, grepltri4, grepltri5, grepltri6))
+spider_tweets_reordered <- spider_tweets_nolongreplies2
+remove(spider_tweets_nolongreplies, spider_tweets_nolongreplies2)
+#started at 44470 observations -> ended at 44275
+```
+
+```{r fixedexport}
+#export
+save_as_csv(spider_tweets_reordered@data, "C:/Users/Julian/Downloads/R_files/data/spiders06062020BIGlocated.csv", prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
+```
+
+```{r fixedread}
+#read
+spider_tweets_reordered <- read_twitter_csv("C:/Users/Julian/Downloads/R_files/data/spiders06062020BIGlocated.csv", unflatten = FALSE)
+#put back into spatial format
+spider_tweets_reordered$minlongX <- as.numeric(spider_tweets_reordered$minlongX)
+spider_tweets_reordered$maxlongX <- as.numeric(spider_tweets_reordered$maxlongX)
+spider_tweets_reordered$minlatY <- as.numeric(spider_tweets_reordered$minlatY)
+spider_tweets_reordered$maxlatY <- as.numeric(spider_tweets_reordered$maxlatY)
+spider_tweets_reordered$centlongX <- (spider_tweets_reordered$minlongX+spider_tweets_reordered$maxlongX)/2
+spider_tweets_reordered$centlatY <- (spider_tweets_reordered$minlatY+spider_tweets_reordered$maxlatY)/2
+spider_tweets_reordered$lon <- spider_tweets_reordered$centlongX
+spider_tweets_reordered$lat <- spider_tweets_reordered$centlatY
+coordinates(spider_tweets_reordered) <- ~lon+lat
+WGS84_proj = "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
+proj4string(spider_tweets_reordered) <- CRS(WGS84_proj)
+```
+
+```{r plotstates}
+#plot states
+graph_states <- spider_tweets_reordered$stateinUSA
+length(unique(graph_states))
+graph <- ggplot(spider_tweets_reordered@data, aes(x=reorder(stateinUSA, stateinUSA, function(x)-length(x)))) +
+  geom_bar(position = position_dodge(width = .75), width=.75) + coord_flip() +
+  scale_x_discrete(labels = function(labels) {
+    sapply(seq_along(labels), function(i) paste0(ifelse(i %% 2 == 0, '', '\r'), labels[i]))
+  }) + theme_light() +
+      labs(x = "Location",
+      y = "Count",
+      title = "Spider tweets by state (January 1 2019-December 31 2019)")
+```
+
+```{r cleantweets}
+#make a cleaned version
+spider_tweets_clean <- tweet_tidy(spider_tweets_reordered@data)
+```
+
+```{r plotuniquewords}
+#plot the top words - numerical items (ie. those preceded by "0001" or similar) are emojis; for example, U+1F577 is the spider emoji
+spider_tweets_clean %>%
+  count(Token, sort = TRUE) %>%
+  top_n(20) %>%
+  mutate(Token = reorder(Token, n)) %>%
+  ggplot(aes(x = Token, y = n)) +
+  geom_col() +
+  xlab(NULL) +
+  coord_flip() +
+      labs(x = "Unique Words",
+      y = "Count",
+      title = "Count of unique words found in tweets - top 20")
+```
+
+```{r mergeterms}
+#merge redundant terms
+spider_tweets_merged <- merge_terms(spider_tweets_clean, term = "spiders", term_replacement = "spider")
+#export
+save_as_csv(spider_tweets_merged, "c:/Users/ges_student/Desktop/quickzip/vBIG/spiders06062020BIGmergedterms.csv", prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
+```
+
+```{r loadmerge}
+spider_tweets_merged <- read_twitter_csv("C:/Users/Julian/Downloads/R_files/data/spiders06062020BIGmergedterms.csv", unflatten = FALSE)
+```
+
+```{r grams}
+#unigrams
+uni <- unigram(spider_tweets_merged) %>% 
+  top_n(20) %>% 
+  kable("html", caption = "Twitter data Uni-Grams")
+uni
+#bigrams
+bi <- bigram(spider_tweets_merged) %>% 
+  top_n(20) %>%
+  kable("html", caption = "Twitter data Bi-Grams")
+bi
+#trigrams
+tri <- trigram(spider_tweets_merged) %>% 
+  top_n(20) %>%
+  kable("html", caption = "Twitter data Tri-Grams")
+tri
+```
+
+```{r posneg}
+#positive and negative words
+posneg <- posneg_words(spider_tweets_clean, 20, filterword = NULL)
+posneg
+```
+
+```{r bingsentiment}
+#get sentiments - https://uc-r.github.io/sentiment_analysis, https://rdrr.io/cran/lexicon/man/hash_sentiment_sentiword.html
+bing <- get_sentiments("bing")
+names(spider_tweets_clean)[names(spider_tweets_clean) == "Token"] <- "word"
+#add sentiment for each unique word
+spider_tweets_sentiment <- merge(spider_tweets_clean, bing, by="word", all.x=TRUE)
+#remove NAs
+spider_tweets_sentiment$isna <- is.na(spider_tweets_sentiment$sentiment)
+spider_tweets_sentiment_nona <- subset(spider_tweets_sentiment, spider_tweets_sentiment$isna != "TRUE")
+spider_tweets_sentiment_nona <- subset(spider_tweets_sentiment_nona, select=-c(isna))
+remove(spider_tweets_sentiment)
+names(spider_tweets_sentiment_nona)[names(spider_tweets_sentiment_nona) == "sentiment"] <- "posneg"
+#add -1 or +1
+spider_tweets_sentiment_nona$sentiment <- 1
+neg<-which(spider_tweets_sentiment_nona$sentiment=="negative")
+spider_tweets_sentiment_nona$sentiment[neg]<--1
+remove(neg)
+#get unique words
+uniquewords <- unique(spider_tweets_sentiment_nona$word)
+unique_words <- as.data.table(uniquewords)
+remove(uniquewords)
+names(unique_words)[names(unique_words) == "uniquewords"] <- "word"
+unique_words_sentiment_nona <- merge(unique_words, bing, by="word", all.x=TRUE)
+nrow(unique_words_sentiment_nona)
+remove(unique_words)
+#get frequency of words
+unique_words_freq <- count(spider_tweets_sentiment_nona, word)
+names(unique_words_freq)[names(unique_words_freq) == "n"] <- "frequency"
+unique_words <- merge(unique_words_sentiment_nona, unique_words_freq, by="word", all.x=TRUE)
+words <- unique_words
+remove(unique_words_sentiment_nona, unique_words_freq, unique_words, spider_tweets_sentiment_nona) #cleaning up
+words %>%
+  top_n(20) %>%
+  mutate(words = reorder(word, frequency)) %>%
+  ggplot(aes(x = word, y = frequency)) +
+  geom_col() +
+  xlab(NULL) +
+  coord_flip() +
+      labs(x = "Words",
+      y = "Frequency",
+      title = "Frequency of words found in tweets - top 20")
+#reformat bing
+bing$a <- 1
+neg<-which(bing$sentiment=="negative")
+bing$a[neg]<--1
+remove(neg)
+bing <- subset(bing, select=-c(sentiment))
+names(bing)[names(bing) == "word"] <- "x"
+names(bing)[names(bing) == "a"] <- "y"
+#string sentiment - https://rdrr.io/github/nrguimaraes/sentimentSetsR/man/getCustomSentiment.html
+spider_tweets_reordered@data$stringsentiment <- 99999
+for(i in 1:nrow(spider_tweets_reordered@data)) {
+  if(spider_tweets_reordered@data$stringsentiment[i] == 99999){
+spider_tweets_reordered@data$stringsentiment[i] <- getCustomSentiment(spider_tweets_reordered@data$text[i],custom.dictionary=bing,scale=FALSE,score.type=sum)
+  }
+  else
+  {
+    i+1
+  }
+}
+#clean up
+remove(bing, spider_tweets_clean, spider_tweets_merged)
+#export
+save_as_csv(words, "C:/Users/Julian/Downloads/R_files/data/words.csv", prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
+save_as_csv(spider_tweets_reordered@data, "C:/Users/Julian/Downloads/R_files/data/spiders06062020BIGsentiment.csv", prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
+#load
+words <- read_twitter_csv("C:/Users/Julian/Downloads/R_files/data/words.csv", unflatten = FALSE)
+spider_tweets_sentiment <- read_twitter_csv("C:/Users/Julian/Downloads/R_files/data/spiders06062020BIGsentiment.csv", unflatten = FALSE)
+spider_tweets_sentiment$minlongX <- as.numeric(spider_tweets_sentiment$minlongX)
+spider_tweets_sentiment$maxlongX <- as.numeric(spider_tweets_sentiment$maxlongX)
+spider_tweets_sentiment$minlatY <- as.numeric(spider_tweets_sentiment$minlatY)
+spider_tweets_sentiment$maxlatY <- as.numeric(spider_tweets_sentiment$maxlatY)
+spider_tweets_sentiment$centlongX <- (spider_tweets_sentiment$minlongX+spider_tweets_sentiment$maxlongX)/2
+spider_tweets_sentiment$centlatY <- (spider_tweets_sentiment$minlatY+spider_tweets_sentiment$maxlatY)/2
+spider_tweets_sentiment$lon <- spider_tweets_sentiment$centlongX
+spider_tweets_sentiment$lat <- spider_tweets_sentiment$centlatY
+coordinates(spider_tweets_sentiment) <- ~lon+lat
+WGS84_proj = "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
+proj4string(spider_tweets_sentiment) <- CRS(WGS84_proj)
+#get likes/retweets of most positive tweets and compare to most negative tweets
+a <- spider_tweets_sentiment@data[order(spider_tweets_sentiment@data$stringsentiment), ]
+negtweets <- a[1:1000,]
+postweets <- a[43276:44275,]
+remove(a)
+sum(postweets$favorite_count)
+sum(postweets$retweet_count)
+sum(negtweets$favorite_count)
+sum(negtweets$retweet_count)
+posnegtweets <- data.table(
+  sentiment = c("positive", "negative", "positive", "negative"),
+  type = c("like", "like", "retweet", "retweet"), 
+  count = c(sum(postweets$favorite_count), sum(negtweets$favorite_count), sum(postweets$retweet_count), sum(negtweets$retweet_count)))
+#plot
+ggplot(posnegtweets, aes(factor(type), count, fill = sentiment)) + geom_bar(stat="identity", position = "dodge") + 
+  scale_fill_brewer(palette = "Set1") +
+      labs(x = "Interaction",
+      y = "Count",
+      title = "Engagement of 1000 most positive vs. 1000 most negative spider tweets")        #overall pos/neg string sentiment
+histogram <- hist(spider_tweets_sentiment@data$stringsentiment, main="Positive/negative sentiment of spider tweets", xlab="Sentiment", ylab="Frequency", labels=TRUE)
+histogram
+```
+
+```{r datetweets}
+#get month
+spider_tweets_sentiment@data$month <- StrLeft(spider_tweets_sentiment@data$created_at, n=7)
+for(i in 1:nrow(spider_tweets_sentiment@data)) {
+  if(spider_tweets_sentiment@data$month[i] == '2019-01'){
+  spider_tweets_sentiment@data$month[i] <- "January"
+  }
+  else if(spider_tweets_sentiment@data$month[i] == '2019-02'){
+  spider_tweets_sentiment@data$month[i] <- "February"
+  }
+  else if(spider_tweets_sentiment@data$month[i] == '2019-03'){
+  spider_tweets_sentiment@data$month[i] <- "March"
+  }
+  else if(spider_tweets_sentiment@data$month[i] == '2019-04'){
+  spider_tweets_sentiment@data$month[i] <- "April"
+  }
+  else if(spider_tweets_sentiment@data$month[i] == '2019-05'){
+  spider_tweets_sentiment@data$month[i] <- "May"
+  }
+  else if(spider_tweets_sentiment@data$month[i] == '2019-06'){
+  spider_tweets_sentiment@data$month[i] <- "June"
+  }
+  else if(spider_tweets_sentiment@data$month[i] == '2019-07'){
+  spider_tweets_sentiment@data$month[i] <- "July"
+  }
+  else if(spider_tweets_sentiment@data$month[i] == '2019-08'){
+  spider_tweets_sentiment@data$month[i] <- "August"
+  }
+  else if(spider_tweets_sentiment@data$month[i] == '2019-09'){
+  spider_tweets_sentiment@data$month[i] <- "September"
+  }
+  else if(spider_tweets_sentiment@data$month[i] == '2019-10'){
+  spider_tweets_sentiment@data$month[i] <- "October"
+  }
+  else if(spider_tweets_sentiment@data$month[i] == '2019-11'){
+  spider_tweets_sentiment@data$month[i] <- "November"
+  }
+  else if(spider_tweets_sentiment@data$month[i] == '2019-12'){
+  spider_tweets_sentiment@data$month[i] <- "December"
+  }
+  else
+  {
+    i+1
+  }
+}
+#order
+monthsordered <- c("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December")
+spider_tweets_sentiment@data$month <- factor(spider_tweets_sentiment@data$month, levels = monthsordered)
+remove(monthsordered)
+#plot
+spider_tweets_sentiment@data %>%
+  group_by(month) %>%
+  summarize(m = mean(stringsentiment)) %>%
+  ungroup() %>%
+  ggplot(aes(x = month, y = m)) +
+  coord_cartesian(ylim = c(-0.5, 0.5)) +
+  geom_line(aes(y = 0), color = "grey", linetype = "dashed", group = 0) +
+  geom_line(group=1) +
+  geom_point() +
+      labs(x = "Month",
+      y = "Sentiment",
+      title = "Sentiment of tweets by month in 2019")
+```
+
+```{r maptweets}
+#create basemap of the USA
+usa_plot <- ggplot() +
+  borders("state", colour = "gray85", fill = "gray80") +
+  theme_map()
+#plot tweets
+usa_plot +
+  geom_point(data = spider_tweets_sentiment@data, aes(x = centlongX, y = centlatY), colour = 'blue', alpha = .10) +
+  coord_sf(crs = WGS84_proj, xlim=c(-124.7, -67.1), ylim = c(25.2, 49.4)) + scale_size_continuous(range = c(1, 8), breaks = c(250, 500, 750, 1000)) +
+  labs(title = "Locations of spider tweets (January 1 2019-December 31 2019)") + theme(plot.title = element_text(hjust = 0.5)) +
+  annotation_scale(location = "bl", line_width = 0.5) + annotation_north_arrow(style = north_arrow_fancy_orienteering, location = "br", which_north = "true")
+#plot tweets with sentiment
+palette <- colorRampPalette(c('red','blue'))
+spider_tweets_sentiment@data$color <- palette(3)[as.numeric(cut(spider_tweets_sentiment@data$stringsentiment,breaks = 3))]
+usa_plot +
+  geom_point(data = spider_tweets_sentiment@data, aes(x = centlongX, y = centlatY), colour = spider_tweets_sentiment@data$color, alpha = .10) +
+  coord_sf(crs = WGS84_proj, xlim=c(-124.7, -67.1), ylim = c(25.2, 49.4)) + scale_size_continuous(range = c(1, 8), breaks = c(250, 500, 750, 1000)) +
+  labs(title = "Sentiment of spider tweets (January 1 2019-December 31 2019)") + theme(plot.title = element_text(hjust = 0.5)) +
+  annotation_scale(location = "bl", line_width = 0.5) + annotation_north_arrow(style = north_arrow_fancy_orienteering, location = "br", which_north = "true")
+```
