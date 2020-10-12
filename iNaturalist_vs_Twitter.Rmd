@@ -1,0 +1,121 @@
+---
+title: "iNaturalist_vs_Twitter"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+lazyLoad = TRUE
+#packages - use devtools or remotes for github versions
+library(rtweet)
+library(sp)
+library(sf)
+library(data.table)
+library(plyr)
+library(rgdal)
+library(raster)
+library(rgeos)
+library(maps)
+library(maptools)
+library(rmapshaper)
+library(ggplot2)
+library(ggspatial)
+library(ggthemes)
+library(ggsn)
+library(dplyr)
+library(extrafont)
+library(spatialEco)
+```
+
+```{r update}
+#update all packages - optional
+update.packages()
+```
+
+```{r read}
+#read
+spider_tweets_sentiment <- read_twitter_csv("C:/Users/Julian/Downloads/R_files_Twitter/data/spiders06062020BIGsentiment.csv", unflatten = FALSE)
+obsperstate <- read.csv("C:/Users/Julian/Downloads/R_files_distribution/obsperstate.csv")
+speciesperstate <- read.csv("C:/Users/Julian/Downloads/R_files_distribution/speciesperstate.csv")
+```
+
+```{r mapobservations}
+#WGS84
+WGS84_proj = "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
+#copy counts
+remove(usa_basemap)
+usa_basemap <- getData('GADM', country='USA', level=1)
+usa_basemap@data$stateinUSA <- usa_basemap@data$NAME_1
+usa_basemap@data <- join(usa_basemap@data, obsperstate, type="left")
+usa_basemap@data$obsNA <- is.na(usa_basemap@data$count)
+for(i in 1:nrow(usa_basemap@data)) {
+  if(usa_basemap@data$obsNA[i] == "TRUE"){
+  usa_basemap@data$count[i] <- "0"
+  }
+  else
+  {
+    i+1
+  }
+}
+#group counts
+usa_basemap@data$count <- as.numeric(usa_basemap@data$count)
+usa_basemap@data$groups <- cut(usa_basemap@data$count, breaks=c(-1,0,5,10,20,50,100,500,2500), labels=c("0","1-5","6-10","11-20","21-50","51-100","100-500",">500"))
+#convert to df for ggplot
+usa_basemap@data$id = rownames(usa_basemap@data)
+usa_basemap.points = fortify(usa_basemap, region="id")
+usa_basemap.df = join(usa_basemap.points, usa_basemap@data, by="id")
+#plot species per state vs. tweets
+map_obsvstweets <- ggplot() +  
+  geom_polygon(data = usa_basemap.df, aes(long, lat, group = group, fill = groups)) +
+  borders("state", colour = "gray90", fill = NA) +
+  geom_point(data = spider_tweets_sentiment, aes(x = centlongX, y = centlatY), colour = 'blue', alpha = .03) +
+  theme_map() +
+  scale_fill_brewer(palette="Greens") +
+  labs(x = NULL, 
+         y = NULL, 
+         title = "Observations per state vs. spider tweets") +
+  coord_sf(crs = st_crs(WGS84_proj), xlim=c(-124.7, -67.1), ylim = c(25.2, 49.4)) +   annotation_north_arrow(style = north_arrow_fancy_orienteering, location = "tr", which_north = "true") + 
+  scale_size_continuous(range = c(1, 8), breaks = c(250, 500, 750, 1000)) + 
+  annotation_scale(location = "br", line_width = 0.5) + 
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.title = element_blank(), legend.background=element_blank()) 
+map_obsvstweets
+```
+
+```{r mapspecies}
+#copy counts
+remove(usa_basemap)
+usa_basemap <- getData('GADM', country='USA', level=1)
+usa_basemap@data$stateinUSA <- usa_basemap@data$NAME_1
+usa_basemap@data <- join(usa_basemap@data, speciesperstate, type="left")
+usa_basemap@data$obsNA <- is.na(usa_basemap@data$count)
+for(i in 1:nrow(usa_basemap@data)) {
+  if(usa_basemap@data$obsNA[i] == "TRUE"){
+  usa_basemap@data$count[i] <- "0"
+  }
+  else
+  {
+    i+1
+  }
+}
+#group counts
+usa_basemap@data$count <- as.numeric(usa_basemap@data$count)
+usa_basemap@data$groups <- cut(usa_basemap@data$count, breaks=c(-1,0,2,5,10), labels=c("0","1-2","3-5","6-9"))
+#convert to df for ggplot
+usa_basemap@data$id = rownames(usa_basemap@data)
+usa_basemap.points = fortify(usa_basemap, region="id")
+usa_basemap.df = join(usa_basemap.points, usa_basemap@data, by="id")
+#plot species per state vs. tweets
+map_speciesvstweets <- ggplot() +  
+  geom_polygon(data = usa_basemap.df, aes(long, lat, group = group, fill = groups)) +
+  borders("state", colour = "gray90", fill = NA) +
+  geom_point(data = spider_tweets_sentiment, aes(x = centlongX, y = centlatY), colour = 'blue', alpha = .03) +
+  theme_map() +
+  scale_fill_brewer(palette="Greens") +
+  labs(x = NULL, 
+         y = NULL, 
+         title = "Species per state vs. spider tweets") +
+  coord_sf(crs = st_crs(WGS84_proj), xlim=c(-124.7, -67.1), ylim = c(25.2, 49.4)) +   annotation_north_arrow(style = north_arrow_fancy_orienteering, location = "tr", which_north = "true") + 
+  scale_size_continuous(range = c(1, 8), breaks = c(250, 500, 750, 1000)) + 
+  annotation_scale(location = "br", line_width = 0.5) + 
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.title = element_blank(), legend.background=element_blank()) 
+map_speciesvstweets
+```

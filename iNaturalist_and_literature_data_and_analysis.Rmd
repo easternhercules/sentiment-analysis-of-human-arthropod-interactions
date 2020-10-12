@@ -1,0 +1,227 @@
+---
+title: "iNaturalist_and_literature_data_and_analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+lazyLoad = TRUE
+#packages - use devtools or remotes for github versions
+library(sp)
+library(sf)
+library(data.table)
+library(plyr)
+library(rgdal)
+library(raster)
+library(rgeos)
+library(maps)
+library(maptools)
+library(rmapshaper)
+library(ggplot2)
+library(ggspatial)
+library(ggthemes)
+library(ggsn)
+library(dplyr)
+library(extrafont)
+library(spatialEco)
+```
+
+```{r update}
+#update all packages - optional
+update.packages()
+```
+
+```{r read}
+#read
+obs <- st_read(
+  "C:/Users/Julian/Downloads/R_files_distribution/inat/observations-All.shp")
+
+full_lit <- read.csv("C:/Users/Julian/Downloads/R_files_distribution/fullliterature.csv")
+lit_in_obs <- read.csv("C:/Users/Julian/Downloads/R_files_distribution/literatureincludedininat.csv")
+lit_not_in_obs <- read.csv("C:/Users/Julian/Downloads/R_files_distribution/literaturenotincludedininat.csv")
+```
+
+```{r filter}
+#remove non-US entries from your literature list(s)
+full_lit <- (full_lit %>% filter(full_lit$Country == "United States of America"))
+lit_in_obs <- (lit_in_obs %>% filter(lit_in_obs$Country == "United States of America"))
+lit_not_in_obs <- (lit_not_in_obs %>% filter(lit_not_in_obs$Country == "United States of America"))
+```
+
+```{r clip}
+#get basemap of the USA with data
+usa_basemap <- getData('GADM', country='USA', level=1)
+usa_basemap <- st_as_sf(usa_basemap)
+obs <- st_as_sf(obs)
+#clip observations
+obs <- ms_clip(obs, clip = usa_basemap)
+#put back into spatial format
+obs <- as.data.frame(obs)
+usa_basemap <- as.data.frame(usa_basemap)
+```
+
+```{r plotobservationpts}
+#plot
+colors <- c("orange", "dark green")
+WGS84_proj = "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
+obs_plot <- ggplot(data = obs, aes(colour = taxon_genu, 
+                                      x = longitude, 
+                                      y = latitude)) + 
+  borders("state", colour = "gray85", fill = "gray80") + 
+  theme_map() + geom_point(alpha = 0.4) + 
+  scale_fill_manual(values = colors, aesthetics = c("colour","fill")) + 
+  labs(x = NULL, 
+         y = NULL, 
+         title = "iNaturalist research-grade observations of medically-important spider genera", 
+         subtitle = "(December 31 1979-February 18 2019)", 
+         caption = "Available from https://www.inaturalist.org. Accessed February 18 2019") +
+  coord_sf(crs = st_crs(WGS84_proj), xlim=c(-124.7, -67.1), ylim = c(25.2, 49.4)) +
+  annotation_north_arrow(style = north_arrow_fancy_orienteering, location = "tr", which_north = "true") + 
+  scale_size_continuous(range = c(1, 8), breaks = c(250, 500, 750, 1000)) + 
+  annotation_scale(location = "br", line_width = 0.5) + 
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.title = element_blank())
+obs_plot
+```
+
+```{r literature}
+full_lit$genus_and_species = paste(full_lit$Genus,full_lit$Species)
+lit_in_obs$genus_and_species = paste(lit_in_obs$Genus,lit_in_obs$Species)
+lit_not_in_obs$genus_and_species = paste(lit_not_in_obs$Genus,lit_not_in_obs$Species)
+```
+
+```{r overlap}
+#put back into spatial format
+coordinates(obs) <- ~longitude+latitude
+proj4string(obs) <- CRS(WGS84_proj)
+usa_basemap <- getData('GADM', country='USA', level=1)
+usa_basemap <- spTransform(usa_basemap, CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+#check for spatial overlap - http://www.nickeubank.com/wp-content/uploads/2015/10/RGIS2_MergingSpatialData_part1_Joins.html#spatial-spatial
+obs2 <- point.in.poly(obs, usa_basemap)
+obs2$stateinUSA <- obs2$NAME_1
+obs2 <- subset(obs2, select=-c(NAME_1))
+```
+
+```{r plotobservationcounts}
+#chart states with the most observations
+graph_obs <- obs2$stateinUSA
+length(unique(graph_obs))
+graph_obs <- ggplot(obs2@data, aes(x=reorder(stateinUSA, stateinUSA, function(x)-length(x)))) +
+  geom_bar(position = position_dodge(width = .75), width=.75) + coord_flip() +
+  scale_x_discrete(labels = function(labels) {
+    sapply(seq_along(labels), function(i) paste0(ifelse(i %% 2 == 0, '', '\r'), labels[i]))
+  }) + theme_light() +
+      labs(x = "Location",
+      y = "Count",
+      title = "iNaturalist research-grade observations of medically-important spiders", 
+      subtitle = "(December 31 1979-February 18 2019)")
+graph_obs
+#get counts
+obsperstate <- count(obs2@data, stateinUSA)
+obsperstate$count <- obsperstate$n
+obsperstate <- subset(obsperstate, select=-c(n))
+#copy counts
+remove(usa_basemap)
+usa_basemap <- getData('GADM', country='USA', level=1)
+usa_basemap@data$stateinUSA <- usa_basemap@data$NAME_1
+usa_basemap@data <- join(usa_basemap@data, obsperstate, type="left")
+usa_basemap@data$obsNA <- is.na(usa_basemap@data$count)
+for(i in 1:nrow(usa_basemap@data)) {
+  if(usa_basemap@data$obsNA[i] == "TRUE"){
+  usa_basemap@data$count[i] <- "0"
+  }
+  else
+  {
+    i+1
+  }
+}
+#group counts
+usa_basemap@data$count <- as.numeric(usa_basemap@data$count)
+usa_basemap@data$groups <- cut(usa_basemap@data$count, breaks=c(-1,0,5,10,20,50,100,500,2500), labels=c("0","1-5","6-10","11-20","21-50","51-100","100-500",">500"))
+#convert to df for ggplot
+usa_basemap@data$id = rownames(usa_basemap@data)
+usa_basemap.points = fortify(usa_basemap, region="id")
+usa_basemap.df = join(usa_basemap.points, usa_basemap@data, by="id")
+#map
+map_obsperstate <- ggplot(usa_basemap.df) +  
+  aes(long, lat, group = group, fill = groups) + 
+  geom_polygon() +
+  theme_map() +
+  scale_fill_brewer(palette="Greens") +
+  labs(x = NULL, 
+         y = NULL, 
+         title = "iNaturalist research-grade observations of medically-important spider genera", 
+         subtitle = "(December 31 1979-February 18 2019)", 
+         caption = "Available from https://www.inaturalist.org. Accessed February 18 2019") +
+  coord_sf(crs = st_crs(WGS84_proj), xlim=c(-124.7, -67.1), ylim = c(25.2, 49.4)) +   annotation_north_arrow(style = north_arrow_fancy_orienteering, location = "tr", which_north = "true") + 
+  scale_size_continuous(range = c(1, 8), breaks = c(250, 500, 750, 1000)) + 
+  annotation_scale(location = "br", line_width = 0.5) + 
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.title = element_blank(), legend.background=element_blank()) + borders("state", colour = "gray90", fill = NA)
+map_obsperstate
+#export dataframes
+write.csv(usa_basemap.df,"C:/Users/Julian/Downloads/R_files_distribution/map_obsperstate.csv", row.names = FALSE)
+write.csv(obsperstate,"C:/Users/Julian/Downloads/R_files_distribution/obsperstate.csv", row.names = FALSE)
+```
+
+```{r plotspeciescounts}
+#get number of species in each state
+speciesperstate <- unique(obs2@data[,c('stateinUSA','taxon_spec')])
+speciesperstate <- (speciesperstate %>%
+  group_by(stateinUSA) %>%
+  mutate(count = n()))
+speciesperstate <- subset(speciesperstate, select=-c(taxon_spec))
+#chart
+graph_speciesperstate <- ggplot(speciesperstate, aes(x=reorder(stateinUSA, stateinUSA, function(x)-length(x)))) +
+  geom_bar(position = position_dodge(width = .75), width=.75) + coord_flip() + 
+  scale_x_discrete(labels = function(labels) {
+    sapply(seq_along(labels), function(i) paste0(ifelse(i %% 2 == 0, '', '\r'), labels[i]))
+  }) +
+  scale_y_continuous(breaks=c(0,1,2,3,4,5,6,7,8,9,10)) +
+  theme_light() +
+      labs(x = "Location",
+      y = "Count",
+      title = "Count of unique species per state as reported via iNaturalist", 
+      subtitle = "(December 31 1979-February 18 2019)")
+graph_speciesperstate
+#get counts
+speciesperstate <- unique(speciesperstate)
+#copy counts
+remove(usa_basemap)
+usa_basemap <- getData('GADM', country='USA', level=1)
+usa_basemap@data$stateinUSA <- usa_basemap@data$NAME_1
+usa_basemap@data <- join(usa_basemap@data, speciesperstate, type="left")
+usa_basemap@data$obsNA <- is.na(usa_basemap@data$count)
+for(i in 1:nrow(usa_basemap@data)) {
+  if(usa_basemap@data$obsNA[i] == "TRUE"){
+  usa_basemap@data$count[i] <- "0"
+  }
+  else
+  {
+    i+1
+  }
+}
+#group counts
+usa_basemap@data$count <- as.numeric(usa_basemap@data$count)
+usa_basemap@data$groups <- cut(usa_basemap@data$count, breaks=c(-1,0,2,5,10), labels=c("0","1-2","3-5","6-9"))
+#convert to df for ggplot
+usa_basemap@data$id = rownames(usa_basemap@data)
+usa_basemap.points = fortify(usa_basemap, region="id")
+usa_basemap.df = join(usa_basemap.points, usa_basemap@data, by="id")
+#map
+map_speciesperstate <- ggplot(usa_basemap.df) +  
+  aes(long, lat, group = group, fill = groups) + 
+  geom_polygon() +
+  theme_map() +
+  scale_fill_brewer(palette="Greens") +
+  labs(x = NULL, 
+         y = NULL, 
+         title = "Count of unique species per state as reported via iNaturalist", 
+         subtitle = "(December 31 1979-February 18 2019)", 
+         caption = "Available from https://www.inaturalist.org. Accessed February 18 2019") +
+  coord_sf(crs = st_crs(WGS84_proj), xlim=c(-124.7, -67.1), ylim = c(25.2, 49.4)) +   annotation_north_arrow(style = north_arrow_fancy_orienteering, location = "tr", which_north = "true") + 
+  scale_size_continuous(range = c(1, 8), breaks = c(250, 500, 750, 1000)) + 
+  annotation_scale(location = "br", line_width = 0.5) + 
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.title = element_blank(), legend.background=element_blank()) + borders("state", colour = "gray90", fill = NA)
+map_speciesperstate
+#export dataframes
+write.csv(usa_basemap.df,"C:/Users/Julian/Downloads/R_files_distribution/map_speciesperstate.csv", row.names = FALSE)
+write.csv(speciesperstate,"C:/Users/Julian/Downloads/R_files_distribution/speciesperstate.csv", row.names = FALSE)
+```
