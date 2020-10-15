@@ -753,7 +753,7 @@ usa_plot +
 palette <- colorRampPalette(c('red','blue'))
 spider_tweets_sentiment@data$color <- palette(3)[as.numeric(cut(spider_tweets_sentiment@data$stringsentiment,breaks = 3))]
 usa_plot +
-  geom_point(data = spider_tweets_sentiment@data, aes(x = centlongX, y = centlatY), colour = spider_tweets_sentiment@data$color, alpha = .10) +
+  geom_point(data = spider_tweets_sentiment@data, aes(x = centlongX, y = centlatY), colour = spider_tweets_sentiment@data$color, alpha = .25) +
   coord_sf(crs = WGS84_proj, xlim=c(-124.7, -67.1), ylim = c(25.2, 49.4)) + scale_size_continuous(range = c(1, 8), breaks = c(250, 500, 750, 1000)) +
   labs(title = "Sentiment of spider tweets (January 1 2019-December 31 2019)") + theme(plot.title = element_text(hjust = 0.5)) +
   annotation_scale(location = "bl", line_width = 0.5) + annotation_north_arrow(style = north_arrow_fancy_orienteering, location = "br", which_north = "true")
