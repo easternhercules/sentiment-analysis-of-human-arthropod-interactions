@@ -78,6 +78,51 @@ map_obsvstweets <- ggplot() +
   annotation_scale(location = "br", line_width = 0.5) + 
   theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.title = element_blank(), legend.background=element_blank()) 
 map_obsvstweets
+#plot observations per state vs. positive tweets
+spider_tweets_sentiment$minlongX <- as.numeric(spider_tweets_sentiment$minlongX)
+spider_tweets_sentiment$maxlongX <- as.numeric(spider_tweets_sentiment$maxlongX)
+spider_tweets_sentiment$minlatY <- as.numeric(spider_tweets_sentiment$minlatY)
+spider_tweets_sentiment$maxlatY <- as.numeric(spider_tweets_sentiment$maxlatY)
+spider_tweets_sentiment$centlongX <- (spider_tweets_sentiment$minlongX+spider_tweets_sentiment$maxlongX)/2
+spider_tweets_sentiment$centlatY <- (spider_tweets_sentiment$minlatY+spider_tweets_sentiment$maxlatY)/2
+spider_tweets_sentiment$lon <- spider_tweets_sentiment$centlongX
+spider_tweets_sentiment$lat <- spider_tweets_sentiment$centlatY
+coordinates(spider_tweets_sentiment) <- ~lon+lat
+WGS84_proj = "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
+proj4string(spider_tweets_sentiment) <- CRS(WGS84_proj)
+a <- spider_tweets_sentiment@data[order(spider_tweets_sentiment@data$stringsentiment), ]
+negtweets <- a[1:1000,]
+postweets <- a[43276:44275,]
+remove(a)
+map_obsvspostweets <- ggplot() +  
+  geom_polygon(data = usa_basemap.df, aes(long, lat, group = group, fill = groups)) +
+  borders("state", colour = "gray90", fill = NA) +
+  geom_point(data = postweets, aes(x = centlongX, y = centlatY), colour = 'blue', alpha = .25) +
+  theme_map() +
+  scale_fill_brewer(palette="Greens") +
+  labs(x = NULL, 
+         y = NULL, 
+         title = "Observations per state vs. top 1000 positive spider tweets") +
+  coord_sf(crs = st_crs(WGS84_proj), xlim=c(-124.7, -67.1), ylim = c(25.2, 49.4)) +   annotation_north_arrow(style = north_arrow_fancy_orienteering, location = "tr", which_north = "true") + 
+  scale_size_continuous(range = c(1, 8), breaks = c(250, 500, 750, 1000)) + 
+  annotation_scale(location = "br", line_width = 0.5) + 
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.title = element_blank(), legend.background=element_blank()) 
+map_obsvspostweets
+#plot observations per state vs. negative tweets
+map_obsvsnegtweets <- ggplot() +  
+  geom_polygon(data = usa_basemap.df, aes(long, lat, group = group, fill = groups)) +
+  borders("state", colour = "gray90", fill = NA) +
+  geom_point(data = negtweets, aes(x = centlongX, y = centlatY), colour = 'red', alpha = .25) +
+  theme_map() +
+  scale_fill_brewer(palette="Greens") +
+  labs(x = NULL, 
+         y = NULL, 
+         title = "Observations per state vs. top 1000 negative spider tweets") +
+  coord_sf(crs = st_crs(WGS84_proj), xlim=c(-124.7, -67.1), ylim = c(25.2, 49.4)) +   annotation_north_arrow(style = north_arrow_fancy_orienteering, location = "tr", which_north = "true") + 
+  scale_size_continuous(range = c(1, 8), breaks = c(250, 500, 750, 1000)) + 
+  annotation_scale(location = "br", line_width = 0.5) + 
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.title = element_blank(), legend.background=element_blank()) 
+map_obsvsnegtweets
 ```
 
 ```{r mapspecies}
@@ -107,7 +152,7 @@ usa_basemap.df = join(usa_basemap.points, usa_basemap@data, by="id")
 map_speciesvstweets <- ggplot() +  
   geom_polygon(data = usa_basemap.df, aes(long, lat, group = group, fill = groups)) +
   borders("state", colour = "gray90", fill = NA) +
-  geom_point(data = spider_tweets_sentiment, aes(x = centlongX, y = centlatY), colour = 'blue', alpha = .03) +
+  geom_point(data = spider_tweets_sentiment@data, aes(x = centlongX, y = centlatY), colour = 'blue', alpha = .03) +
   theme_map() +
   scale_fill_brewer(palette="Greens") +
   labs(x = NULL, 
