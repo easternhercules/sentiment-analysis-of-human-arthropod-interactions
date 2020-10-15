@@ -738,6 +738,35 @@ spider_tweets_sentiment@data %>%
       title = "Sentiment of tweets by month in 2019")
 ```
 
+```{r stats}
+#calculate statistics
+#positive/negative tweet sentiment
+#http://www.r-tutor.com/elementary-statistics/quantitative-data/frequency-distribution-quantitative-data
+stringsentiment <- spider_tweets_sentiment@data$stringsentiment
+t.test(stringsentiment, mu = 0, alternative = "two.sided")
+#positive/negative tweet likes
+postweets$sentiment <- "positive"
+negtweets$sentiment <- "negative"
+posnegtweetsfull <- rbind(postweets,negtweets)
+mean(posnegtweetsfull$favorite_count)
+posnegtweetsfulllikes.aov <- aov(formula = favorite_count ~ sentiment,
+                   data = posnegtweetsfull)
+posnegtweetsfulllikes.lm <- lm(formula = favorite_count ~ sentiment,
+                   data = posnegtweetsfull)
+summary(posnegtweetsfulllikes.aov)
+TukeyHSD(posnegtweetsfulllikes.aov)
+summary(posnegtweetsfulllikes.lm)
+#positive/negative tweet retweets
+mean(posnegtweetsfull$retweet_count)
+posnegtweetsfullretweets.aov <- aov(formula = retweet_count ~ sentiment,
+                   data = posnegtweetsfull)
+posnegtweetsfullretweets.lm <- lm(formula = retweet_count ~ sentiment,
+                   data = posnegtweetsfull)
+summary(posnegtweetsfullretweets.aov)
+TukeyHSD(posnegtweetsfullretweets.aov)
+summary(posnegtweetsfullretweets.lm)
+```
+
 ```{r maptweets}
 #create basemap of the USA
 usa_plot <- ggplot() +
