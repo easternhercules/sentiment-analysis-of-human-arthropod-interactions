@@ -42,7 +42,6 @@ speciesperstate <- read.csv("C:/Users/Julian/Downloads/R_files_distribution/spec
 #WGS84
 WGS84_proj = "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
 #copy counts
-remove(usa_basemap)
 usa_basemap <- getData('GADM', country='USA', level=1)
 usa_basemap@data$stateinUSA <- usa_basemap@data$NAME_1
 usa_basemap@data <- join(usa_basemap@data, obsperstate, type="left")
@@ -163,4 +162,31 @@ map_speciesvstweets <- ggplot() +
   annotation_scale(location = "br", line_width = 0.5) + 
   theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.title = element_blank(), legend.background=element_blank()) 
 map_speciesvstweets
+```
+
+```{r stats}
+#calculate statistics
+#observations per state vs. positive retweets
+obsperstate$observations <- obsperstate$count
+obsperstate <- subset(obsperstate, select = -c(count))
+mean(obsperstate$observations)
+posrtssum <- aggregate(retweet_count ~ stateinUSA, postweets, sum)
+obsandposrts <- inner_join(obsperstate, posrtssum, by="stateinUSA")
+obsandposrts.aov <- aov(formula = retweet_count ~ observations,
+                   data = obsandposrts)
+obsandposrts.lm <- lm(formula = retweet_count ~ observations,
+                   data = obsandposrts)
+summary(obsandposrts.aov)
+summary(obsandposrts.lm)
+mean(obsandposrts$retweet_count)
+#observations per state vs. negative retweets
+negrtssum <- aggregate(retweet_count ~ stateinUSA, negtweets, sum)
+obsandnegrts <- inner_join(obsperstate, negrtssum, by="stateinUSA")
+obsandnegrts.aov <- aov(formula = retweet_count ~ observations,
+                   data = obsandnegrts)
+obsandnegrts.lm <- lm(formula = retweet_count ~ observations,
+                   data = obsandnegrts)
+summary(obsandnegrts.aov)
+summary(obsandnegrts.lm)
+mean(obsandnegrts$retweet_count)
 ```
