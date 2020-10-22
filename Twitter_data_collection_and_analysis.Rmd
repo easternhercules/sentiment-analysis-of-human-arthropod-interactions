@@ -751,6 +751,10 @@ posnegtweetsfull <- rbind(postweets,negtweets)
 t.test(posnegtweetsfull$favorite_count, mu = 0, alternative = "two.sided")
 #positive/negative tweet retweets
 t.test(posnegtweetsfull$retweet_count, mu = 0, alternative = "two.sided")
+#sentiment over months
+sentimentovertime.aov <- aov(formula = stringsentiment ~ month,
+                   data = spider_tweets_sentiment@data)
+summary(sentimentovertime.aov)
 ```
 
 ```{r maptweets}
