@@ -179,6 +179,10 @@ obsandposrts.lm <- lm(formula = retweet_count ~ observations,
 summary(obsandposrts.aov)
 summary(obsandposrts.lm)
 mean(obsandposrts$retweet_count)
+plotpos <- ggplot(obsandposrts, aes(x = observations, y = retweet_count)) + 
+  geom_point() +
+  stat_smooth(method = "lm", col = "blue")
+plotpos + scale_x_continuous(trans = 'log10')
 #observations per state vs. negative retweets
 negrtssum <- aggregate(retweet_count ~ stateinUSA, negtweets, sum)
 obsandnegrts <- inner_join(obsperstate, negrtssum, by="stateinUSA")
@@ -189,4 +193,8 @@ obsandnegrts.lm <- lm(formula = retweet_count ~ observations,
 summary(obsandnegrts.aov)
 summary(obsandnegrts.lm)
 mean(obsandnegrts$retweet_count)
+plotneg <- ggplot(obsandnegrts, aes(x = observations, y = retweet_count)) + 
+  geom_point() +
+  stat_smooth(method = "lm", col = "red")
+plotneg + scale_x_continuous(trans = 'log10')
 ```
