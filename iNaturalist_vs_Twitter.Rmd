@@ -101,8 +101,8 @@ map_obsvspostweets <- ggplot() +
   scale_fill_brewer(palette="Greens") +
   labs(x = NULL, 
          y = NULL, 
-         title = "Observations per state vs. top 1000 positive spider tweets") +
-  coord_sf(crs = st_crs(WGS84_proj), xlim=c(-124.7, -67.1), ylim = c(25.2, 49.4)) +   annotation_north_arrow(style = north_arrow_fancy_orienteering, location = "tr", which_north = "true") + 
+         title = "Observations per state vs. top 1000 positive spider tweets by retweet count") +
+  coord_sf(crs = st_crs(WGS84_proj), xlim=c(-124.7, -67.1), ylim = c(25.2, 49.4)) +   annotation_north_arrow(style = north_arrow_fancy_orienteering, location = "tr", which_north = "true") +
   scale_size_continuous(range = c(1, 8), breaks = c(250, 500, 750, 1000)) + 
   annotation_scale(location = "br", line_width = 0.5) + 
   theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.title = element_blank(), legend.background=element_blank()) 
@@ -116,8 +116,8 @@ map_obsvsnegtweets <- ggplot() +
   scale_fill_brewer(palette="Greens") +
   labs(x = NULL, 
          y = NULL, 
-         title = "Observations per state vs. top 1000 negative spider tweets") +
-  coord_sf(crs = st_crs(WGS84_proj), xlim=c(-124.7, -67.1), ylim = c(25.2, 49.4)) +   annotation_north_arrow(style = north_arrow_fancy_orienteering, location = "tr", which_north = "true") + 
+         title = "Observations per state vs. top 1000 negative spider tweets by retweet count") +
+  coord_sf(crs = st_crs(WGS84_proj), xlim=c(-124.7, -67.1), ylim = c(25.2, 49.4)) +   annotation_north_arrow(style = north_arrow_fancy_orienteering, location = "tr", which_north = "true") +
   scale_size_continuous(range = c(1, 8), breaks = c(250, 500, 750, 1000)) + 
   annotation_scale(location = "br", line_width = 0.5) + 
   theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.title = element_blank(), legend.background=element_blank()) 
@@ -181,7 +181,10 @@ summary(obsandposrts.lm)
 mean(obsandposrts$retweet_count)
 plotpos <- ggplot(obsandposrts, aes(x = observations, y = retweet_count)) + 
   geom_point() +
-  stat_smooth(method = "lm", col = "blue")
+  stat_smooth(method = "lm", col = "blue") +
+  labs(x = "Observations", 
+         y = "Retweets", 
+         title = "Observations per state vs. top 1000 positive spider tweets by retweet count")
 plotpos + scale_x_continuous(trans = 'log10')
 #observations per state vs. negative retweets
 negrtssum <- aggregate(retweet_count ~ stateinUSA, negtweets, sum)
@@ -195,6 +198,9 @@ summary(obsandnegrts.lm)
 mean(obsandnegrts$retweet_count)
 plotneg <- ggplot(obsandnegrts, aes(x = observations, y = retweet_count)) + 
   geom_point() +
-  stat_smooth(method = "lm", col = "red")
+  stat_smooth(method = "lm", col = "red") +
+  labs(x = "Observations", 
+         y = "Retweets", 
+         title = "Observations per state vs. top 1000 negative spider tweets by retweet count")
 plotneg + scale_x_continuous(trans = 'log10')
 ```
