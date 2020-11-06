@@ -22,6 +22,7 @@ These are the .rmds containing the code used in my Master's thesis, *Sentiment A
 1. Remove any observations that are not usable (not research-grade, coordinates unlisted due to being marked as private, etc.)
 1. Convert tabular entries to points using latitude/longitude
 1. Ensure CRS match, check for spatial overlap with a basemap, and clip to area of interest
+1. Normalize by census data
 1. At this point you can create maps/graphs; if your results are off you can return to the previous steps and re-examine your dataset
 
 * Downloading Twitter data
@@ -38,11 +39,12 @@ These are the .rmds containing the code used in my Master's thesis, *Sentiment A
 1. Remove any tweets that are not relevant to your topic (using grepl on text column to find key words)
 1. Get latitude/longitude from bounding box coordinates (separate bbox coords column, delete unnecessary new columns, transform new columns to numeric, get centroids of bbox using (minlong+maxlong)/2 and (minlat+maxlat)/2, check for and drop any entries where is.na=”TRUE”)
 1. Get state names by determining which entries do not have them, adding a projection to the coordinates from the previous step, checking for spatial overlap with a basemap, and using over to copy states to a new column
+1. Normalize by census data
 1. At this point you can create maps/graphs and perform sentiment analysis; if your results are off you can return to the previous steps and re-examine your dataset
 
 * Combination
 
-1. For multi-layered analysis, you can overlay the results from processing the iNaturalist data and the Twitter data - just plot distribution as polygons and tweets as points
+1. For multi-layered analysis, you can overlay the results from processing the iNaturalist data and the Twitter data
 
 In the future these steps might change to require more/less due to addition or deprecation of various features or attributes by Twitter post-v1.1 API.
 
