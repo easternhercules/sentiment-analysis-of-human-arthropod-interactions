@@ -9,6 +9,8 @@ lazyLoad = TRUE
 library(sp)
 library(sf)
 library(data.table)
+library(tidycensus)
+library(tidyverse)
 library(plyr)
 library(rgdal)
 library(raster)
@@ -23,6 +25,7 @@ library(ggsn)
 library(dplyr)
 library(extrafont)
 library(spatialEco)
+census_api_key("redacted")
 ```
 
 ```{r update}
@@ -99,6 +102,32 @@ obs2 <- point.in.poly(obs, usa_basemap)
 obs2$stateinUSA <- obs2$NAME_1
 obs2 <- subset(obs2, select=-c(NAME_1))
 ```
+
+```{r normalize}
+#normalize by population
+#get ACS data
+v18 <- load_variables(2018, "acs5", cache = TRUE)
+v18
+pop <- get_acs(geography = "state", variables = "B01003_001", year = 2018, geometry = FALSE)
+pop$stateinUSA <- pop$NAME
+pop$estpop <- pop$estimate
+pop <- subset(pop, select=-c(NAME, estimate, GEOID, variable, moe))
+#calculate
+obs2@data <- left_join(obs2@data, pop, by = "stateinUSA")
+remove(v18, pop)
+obs2@data$normcount <- ((obs2@data$count/obs2@data$estpop) * 100000)
+
+
+
+
+
+
+
+
+
+
+```
+
 
 ```{r plotobservationcounts}
 #chart states with the most observations
