@@ -4,6 +4,7 @@
 These are the .rmds containing the code used in my Master's thesis, *Sentiment Analysis of Human-Arthropod Interactions (2020)*.
 
 ## Requirements
+* [Census API key](https://api.census.gov/data/key_signup.html)
 * iNaturalist account
 * Twitter account with developer access + premium API subscription
 * Twitter dev environment
