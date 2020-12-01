@@ -8,6 +8,7 @@ lazyLoad = TRUE
 #packages - use devtools or remotes for github versions
 library(easypackages)
 #basics
+library(here)
 if (!requireNamespace("BiocManager", quietly = TRUE)){
     install.packages("BiocManager")
 }
@@ -31,6 +32,8 @@ library(widyr)
 library(tidyr)
 library(igraph)
 library(ggraph)
+library(tidycensus)
+library(tidyverse)
 #sentiment analysis
 library(lexicon)
 library(saotd)
@@ -52,6 +55,10 @@ library(rgdal)
 library(ggthemes)
 library(ggsn)
 library(dplyr)
+census_api_key("redacted")
+here::set_here("R_files_Twitter")
+here::here("R_files_Twitter")
+options(digits=5)
 ```
 
 ```{r update}
@@ -90,20 +97,20 @@ token = NULL
 ```{r exporttweets}
 #note: saving/reading may be a bit slow but must use read_twitter_csv rather than read or fread due to formatting
 #export
-save_as_csv(spider_tweets, "c:/Users/ges_student/Desktop/Julian/vBIG/spiders06062020BIGx", prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
+save_as_csv(spider_tweets, here::here("data", "spiders06062020BIGx"), prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
 ```
 
 ```{r readtweets}
 #read
-spider_tweets1 <- read_twitter_csv("c:/Users/ges_student/Desktop/Julian/vBIG/spiders06062020BIG1.csv", unflatten = FALSE)
-spider_tweets2 <- read_twitter_csv("c:/Users/ges_student/Desktop/Julian/vBIG/spiders06062020BIG2.csv", unflatten = FALSE)
-spider_tweets3 <- read_twitter_csv("c:/Users/ges_student/Desktop/Julian/vBIG/spiders06062020BIG3.csv", unflatten = FALSE)
-spider_tweets4 <- read_twitter_csv("c:/Users/ges_student/Desktop/Julian/vBIG/spiders06062020BIG4.csv", unflatten = FALSE)
-spider_tweets5 <- read_twitter_csv("c:/Users/ges_student/Desktop/Julian/vBIG/spiders06062020BIG5.csv", unflatten = FALSE)
-spider_tweets6 <- read_twitter_csv("c:/Users/ges_student/Desktop/Julian/vBIG/spiders06062020BIG6.csv", unflatten = FALSE)
-spider_tweets7 <- read_twitter_csv("c:/Users/ges_student/Desktop/Julian/vBIG/spiders06062020BIG7.csv", unflatten = FALSE)
-spider_tweets8 <- read_twitter_csv("c:/Users/ges_student/Desktop/Julian/vBIG/spiders06062020BIG8.csv", unflatten = FALSE)
-spider_tweets9 <- read_twitter_csv("c:/Users/ges_student/Desktop/Julian/vBIG/spiders06062020BIG9.csv", unflatten = FALSE)
+spider_tweets1 <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIG1.csv"), unflatten = FALSE)
+spider_tweets2 <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIG2.csv"), unflatten = FALSE)
+spider_tweets3 <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIG3.csv"), unflatten = FALSE)
+spider_tweets4 <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIG4.csv"), unflatten = FALSE)
+spider_tweets5 <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIG5.csv"), unflatten = FALSE)
+spider_tweets6 <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIG6.csv"), unflatten = FALSE)
+spider_tweets7 <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIG7.csv"), unflatten = FALSE)
+spider_tweets8 <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIG8.csv"), unflatten = FALSE)
+spider_tweets9 <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIG9.csv"), unflatten = FALSE)
 #append
 spider_tweetsbind12 <- rbind(spider_tweets1, spider_tweets2)
 spider_tweetsbind34 <- rbind(spider_tweets3, spider_tweets4)
@@ -235,12 +242,12 @@ remove(spider_tweets_sep, spider_tweets_nonacoords)
 
 ```{r cleanexport}
 #export
-save_as_csv(spider_tweets, driver="CSV", "c:/Users/ges_student/Desktop/Julian/vBIG/spiders06062020BIGclean")
+save_as_csv(spider_tweets, driver="CSV", here::here("R_files_Twitter", "data", "spiders06062020BIGclean"), unflatten = FALSE))
 ```
 
 ```{r cleanread}
 #read
-spider_tweets <- read_twitter_csv("c:/Users/ges_student/Desktop/Julian/vBIG/spiders06062020BIGclean.csv")
+spider_tweets <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIGclean.csv"), unflatten = FALSE)
 ```
 
 ```{r tweetstates}
@@ -303,12 +310,12 @@ remove(spider_tweets_nomonkeys, spider_tweets_nomonkeys2)
 
 ```{r locatedexport}
 #export
-save_as_csv(spider_tweets_reordered, "C:/Users/ges_student/Desktop/quickzip/spiders06062020BIGlocated.csv", prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
+save_as_csv(spider_tweets_reordered, here::here("R_files_Twitter", "data","spiders06062020BIGlocated.csv"), prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
 ```
 
 ```{r locatedread}
 #read
-spider_tweets_reordered <- read_twitter_csv("C:/Users/Julian/Downloads/R_files/data/spiders06062020BIGlocated.csv", unflatten = FALSE)
+spider_tweets_reordered <- read_twitter_csv(here::here("R_files_Twitter", "data","spiders06062020BIGlocated.csv"), unflatten = FALSE)
 #put back into spatial format
 spider_tweets_reordered$minlongX <- as.numeric(spider_tweets_reordered$minlongX)
 spider_tweets_reordered$maxlongX <- as.numeric(spider_tweets_reordered$maxlongX)
@@ -325,7 +332,7 @@ proj4string(spider_tweets_reordered) <- CRS(WGS84_proj)
 
 ```{r doesfollow}
 #per Timothy Sparklin, Office of Research Protections and Compliance @ UMBC: One of our privacy tests we use asks if anyone on the research team (including the advisor) has a previous or existing relationship with any of the known tweet author(s). You may or may not know if such a relationship exists, but given the specific topic (medically-important spiders) and even if the tweet source data is public, it's important to know if anyone is a visitor or follower of potential authors. If yes, it's recommended that you no longer be a visitor/follower as you would be actively collecting data from the Twitter feed. This is not a regulatory requirement, but an ethical recommendation that recognizes that an expectation of privacy may exist. If you are following anyone related to the data collected on this topic, they should be unfollowed for the duration of the research.
-spider_tweets_reordered <- read_twitter_csv("c:/Users/ges_student/Desktop/Julian/vBIG/spiders06062020BIGlocated.csv", unflatten = FALSE)
+spider_tweets_reordered <- read_twitter_csv(here::here("R_files_Twitter", "data","spiders06062020BIGlocated.csv"), unflatten = FALSE)
 following_list <- read.csv("c:/Users/ges_student/Desktop/Julian/following_list.csv")
 doesfollow <- (spider_tweets_reordered$screen_name %in% following_list$following)
 for(i in 1:nrow(spider_tweets_reordered)) {
@@ -483,12 +490,12 @@ remove(spider_tweets_nolongreplies, spider_tweets_nolongreplies2)
 
 ```{r fixedexport}
 #export
-save_as_csv(spider_tweets_reordered@data, "C:/Users/Julian/Downloads/R_files/data/spiders06062020BIGlocated.csv", prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
+save_as_csv(spider_tweets_reordered@data, here::here("R_files_Twitter", "data", "spiders06062020BIGlocated.csv"), prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
 ```
 
 ```{r fixedread}
 #read
-spider_tweets_reordered <- read_twitter_csv("C:/Users/Julian/Downloads/R_files/data/spiders06062020BIGlocated.csv", unflatten = FALSE)
+spider_tweets_reordered <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIGlocated.csv"), unflatten = FALSE)
 #put back into spatial format
 spider_tweets_reordered$minlongX <- as.numeric(spider_tweets_reordered$minlongX)
 spider_tweets_reordered$maxlongX <- as.numeric(spider_tweets_reordered$maxlongX)
@@ -541,11 +548,11 @@ spider_tweets_clean %>%
 #merge redundant terms
 spider_tweets_merged <- merge_terms(spider_tweets_clean, term = "spiders", term_replacement = "spider")
 #export
-save_as_csv(spider_tweets_merged, "c:/Users/ges_student/Desktop/quickzip/vBIG/spiders06062020BIGmergedterms.csv", prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
+save_as_csv(spider_tweets_merged, here::here("R_files_Twitter", "data", "spiders06062020BIGmergedterms.csv"), prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
 ```
 
 ```{r loadmerge}
-spider_tweets_merged <- read_twitter_csv("C:/Users/Julian/Downloads/R_files/data/spiders06062020BIGmergedterms.csv", unflatten = FALSE)
+spider_tweets_merged <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIGmergedterms.csv"), unflatten = FALSE)
 ```
 
 ```{r grams}
@@ -635,11 +642,11 @@ spider_tweets_reordered@data$stringsentiment[i] <- getCustomSentiment(spider_twe
 #clean up
 remove(bing, spider_tweets_clean, spider_tweets_merged)
 #export
-save_as_csv(words, "C:/Users/Julian/Downloads/R_files/data/words.csv", prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
-save_as_csv(spider_tweets_reordered@data, "C:/Users/Julian/Downloads/R_files/data/spiders06062020BIGsentiment.csv", prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
+save_as_csv(words, here::here("R_files_Twitter", "data", "words.csv"), prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
+save_as_csv(spider_tweets_reordered@data, here::here("R_files_Twitter", "data", "spiders06062020BIGsentiment.csv"), prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
 #load
-words <- read_twitter_csv("C:/Users/Julian/Downloads/R_files/data/words.csv", unflatten = FALSE)
-spider_tweets_sentiment <- read_twitter_csv("C:/Users/Julian/Downloads/R_files/data/spiders06062020BIGsentiment.csv", unflatten = FALSE)
+words <- read_twitter_csv(here::here("R_files_Twitter", "data", "words.csv"), unflatten = FALSE)
+spider_tweets_sentiment <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIGsentiment.csv"), unflatten = FALSE)
 spider_tweets_sentiment$minlongX <- as.numeric(spider_tweets_sentiment$minlongX)
 spider_tweets_sentiment$maxlongX <- as.numeric(spider_tweets_sentiment$maxlongX)
 spider_tweets_sentiment$minlatY <- as.numeric(spider_tweets_sentiment$minlatY)
