@@ -219,13 +219,6 @@ for(i in 1:nrow(obs2@data)) {
     i+1
   }
 }
-obsandtotalobs.aov <- aov(formula = totalobscount ~ normcount,
-                   data = obs2@data)
-obsandtotalobs.lm <- lm(formula = totalobscount ~ normcount,
-                   data = obs2@data)
-summary(obsandtotalobs.aov)
-summary(obsandtotalobs.lm)
-mean(obs2@data$normcount)
 plotobsandtotalobs <- ggplot(obs2@data, aes(x = normcount, y = totalobscount)) + 
   geom_point(col="green") +
   geom_text(label=obs2@data$stateinUSAabbr) +
@@ -252,6 +245,15 @@ col_order <- c("stateinUSA", "obscount", "totalobscount", "normcount")
 obsperstate_joined <- obsperstate_joined[, col_order]
 obsperstate_joined <- obsperstate_joined[order(-obsperstate_joined$normcount),]
 remove(col_order)
+#stats
+obsandtotalobs.aov <- aov(formula = totalobscount ~ normcount,
+                   data = obsperstate_joined)
+obsandtotalobs.lm <- lm(formula = totalobscount ~ normcount,
+                   data = obsperstate_joined)
+summary(obsandtotalobs.aov)
+summary(obsandtotalobs.lm)
+mean(obsperstate_joined$normcount)
+#export
 write.csv(obsperstate_joined, here::here("obsperstate_joined.csv"), row.names = FALSE)
 ```
 
