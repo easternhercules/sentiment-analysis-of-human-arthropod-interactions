@@ -6,6 +6,7 @@ output: html_document
 ```{r setup, include=FALSE, echo=FALSE}
 lazyLoad = TRUE
 #packages - use devtools or remotes for github versions
+library(here)
 library(sp)
 library(sf)
 library(data.table)
@@ -18,6 +19,7 @@ library(rgeos)
 library(maps)
 library(maptools)
 library(rmapshaper)
+library(RColorBrewer)
 library(ggplot2)
 library(ggspatial)
 library(ggthemes)
@@ -26,6 +28,8 @@ library(dplyr)
 library(extrafont)
 library(spatialEco)
 census_api_key("redacted")
+here::here("R_files_distribution")
+options(digits=5)
 ```
 
 ```{r update}
@@ -35,13 +39,13 @@ update.packages()
 
 ```{r read}
 #read
-obs_interest <- st_read(
-  "C:/Users/Julian/Downloads/R_files_distribution/inat/observations-All.shp")
-obs_all <- read.csv("C:/Users/Julian/Downloads/R_files_distribution/inat/full/observations-Full.csv")
-full_lit <- read.csv("C:/Users/Julian/Downloads/R_files_distribution/fullliterature.csv")
-lit_in_obs <- read.csv("C:/Users/Julian/Downloads/R_files_distribution/literatureincludedininat.csv")
-lit_not_in_obs <- read.csv("C:/Users/Julian/Downloads/R_files_distribution/literaturenotincludedininat.csv")
+obs_interest <- st_read(here::here("inat", "observations-All.shp"))
+obs_all <- read.csv(here::here("inat", "full", "observations-Full.csv"))
+full_lit <- read.csv(here::here("fullliterature.csv"))
+lit_in_obs <- read.csv(here::here("literatureincludedininat.csv"))
+lit_not_in_obs <- read.csv(here::here("literaturenotincludedininat.csv"))
 ```
+
 ```{r clean}
 #clean tables
 obs_all$stateinUSA <- obs_all$place_state_name
@@ -178,6 +182,7 @@ speciesperstate <- unique(speciesperstate)
 remove(usa_basemap)
 usa_basemap <- getData('GADM', country='USA', level=1)
 usa_basemap@data$stateinUSA <- usa_basemap@data$NAME_1
+usa_basemap@data <- join(usa_basemap@data, obsperstate, type="left")
 usa_basemap@data <- join(usa_basemap@data, speciesperstate, type="left")
 usa_basemap@data$obsNA <- is.na(usa_basemap@data$speccount)
 for(i in 1:nrow(usa_basemap@data)) {
@@ -200,6 +205,7 @@ obsperstate_allspiders <- subset(obsperstate_allspiders, select=-c(x, freq))
 ```
 
 ```{r normalize}
+#normalize medically-important spider observations by total spider observations
 obsperstate_joined <- left_join(obsperstate, obsperstate_allspiders, by = "stateinUSA")
 #plot
 obs2@data <- left_join(obs2@data, obsperstate_joined, by = "stateinUSA")
@@ -224,8 +230,8 @@ plotobsandtotalobs <- ggplot(obs2@data, aes(x = normcount, y = totalobscount)) +
   geom_point(col="green") +
   geom_text(label=obs2@data$stateinUSAabbr) +
   #stat_smooth(method = "lm", col = "green") +
-  labs(x = "Medically-important observations (normalized)", 
-         y = "Total order Araneae observations", 
+  labs(x = "% of total observations that are medically-important", 
+         y = "Total spider (order Araneae) observations", 
          title = "Medically-important spiders vs. total spiders per state")
 plotobsandtotalobs + scale_y_continuous(trans = 'log10')
 #table
@@ -239,28 +245,42 @@ for(i in 1:nrow(obsperstate_joined)) {
     i+1
   }
 }
+#round
+obsperstate_joined$normcount <- format(round(obsperstate_joined$normcount, 2), nsmall = 2)
+obsperstate_joined$normcount <- as.numeric(obsperstate_joined$normcount)
 col_order <- c("stateinUSA", "obscount", "totalobscount", "normcount")
 obsperstate_joined <- obsperstate_joined[, col_order]
-obsperstate_joined$normcount <- trunc(obsperstate_joined$normcount)
 obsperstate_joined <- obsperstate_joined[order(-obsperstate_joined$normcount),]
 remove(col_order)
-write.csv(obsperstate_joined,"C:/Users/Julian/Downloads/R_files_distribution/obsperstate_joined.csv", row.names = FALSE)
+write.csv(obsperstate_joined, here::here("obsperstate_joined.csv"), row.names = FALSE)
 ```
 
 ```{r plotobservationcounts}
+#fix NA values
+for(i in 1:nrow(usa_basemap@data)) {
+  if(is.na(usa_basemap@data$obscount[i])){
+  usa_basemap@data$obscount[i] <- "0"
+  }
+  else
+  {
+    i+1
+  }
+}
 #group counts
-usa_basemap@data$count <- as.numeric(usa_basemap@data$count)
-usa_basemap@data$groups <- cut(usa_basemap@data$count, breaks=c(-1,0,5,10,20,50,100,500,2500), labels=c("0","1-5","6-10","11-20","21-50","51-100","100-500",">500"))
+usa_basemap@data$obscount <- as.numeric(usa_basemap@data$obscount)
+usa_basemap@data$groups <- cut(usa_basemap@data$obscount, breaks=c(-1,0,5,10,20,50,100,500,2500), labels=c("0","1-5","6-10","11-20","21-50","51-100","100-500",">500"))
 #convert to df for ggplot
 usa_basemap@data$id = rownames(usa_basemap@data)
 usa_basemap.points = fortify(usa_basemap, region="id")
 usa_basemap.df = join(usa_basemap.points, usa_basemap@data, by="id")
 #map
+colors <- brewer.pal(8, "Greens")
+colors[1] <- "gray80"
 map_obsperstate <- ggplot(usa_basemap.df) +  
   aes(long, lat, group = group, fill = groups) + 
   geom_polygon() +
   theme_map() +
-  scale_fill_brewer(palette="Greens") +
+  scale_fill_manual(values=colors) +
   labs(x = NULL, 
          y = NULL, 
          title = "iNaturalist research-grade observations of medically-important spider genera", 
@@ -272,24 +292,27 @@ map_obsperstate <- ggplot(usa_basemap.df) +
   theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.title = element_blank(), legend.background=element_blank()) + borders("state", colour = "gray90", fill = NA)
 map_obsperstate
 #export dataframes
-write.csv(usa_basemap.df,"C:/Users/Julian/Downloads/R_files_distribution/map_obsperstate.csv", row.names = FALSE)
-write.csv(obsperstate,"C:/Users/Julian/Downloads/R_files_distribution/obsperstate.csv", row.names = FALSE)
+write.csv(usa_basemap.df, here::here("map_obsperstate.csv"), row.names = FALSE)
+write.csv(obsperstate, here::here("obsperstate.csv"), row.names = FALSE)
+remove(obsperstate)
 ```
 
 ```{r plotspeciescounts}
 #group counts
-usa_basemap@data$count <- as.numeric(usa_basemap@data$count)
-usa_basemap@data$groups <- cut(usa_basemap@data$count, breaks=c(-1,0,2,5,10), labels=c("0","1-2","3-5","6-9"))
+usa_basemap@data$speccount <- as.numeric(usa_basemap@data$speccount)
+usa_basemap@data$groups <- cut(usa_basemap@data$speccount, breaks=c(-1,0,2,5,10), labels=c("0","1-2","3-5","6-9"))
 #convert to df for ggplot
 usa_basemap@data$id = rownames(usa_basemap@data)
 usa_basemap.points = fortify(usa_basemap, region="id")
 usa_basemap.df = join(usa_basemap.points, usa_basemap@data, by="id")
 #map
+colors <- brewer.pal(4, "Greens")
+colors[1] <- "gray80"
 map_speciesperstate <- ggplot(usa_basemap.df) +  
   aes(long, lat, group = group, fill = groups) + 
   geom_polygon() +
   theme_map() +
-  scale_fill_brewer(palette="Greens") +
+  scale_fill_manual(values=colors) +
   labs(x = NULL, 
          y = NULL, 
          title = "Count of unique species per state as reported via iNaturalist", 
@@ -301,28 +324,41 @@ map_speciesperstate <- ggplot(usa_basemap.df) +
   theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.title = element_blank(), legend.background=element_blank()) + borders("state", colour = "gray90", fill = NA)
 map_speciesperstate
 #export dataframes
-write.csv(usa_basemap.df,"C:/Users/Julian/Downloads/R_files_distribution/map_speciesperstate.csv", row.names = FALSE)
-write.csv(speciesperstate,"C:/Users/Julian/Downloads/R_files_distribution/speciesperstate.csv", row.names = FALSE)
+write.csv(usa_basemap.df, here::here("map_speciesperstate.csv"), row.names = FALSE)
+write.csv(speciesperstate, here::here("speciesperstate.csv"), row.names = FALSE)
+remove(speciesperstate)
 ```
 
 ```{r plotnormalizedcounts}
 usa_basemap@data <- left_join(usa_basemap@data, obsperstate_joined, by = "stateinUSA")
+#fix NA values
+for(i in 1:nrow(usa_basemap@data)) {
+  if(is.na(usa_basemap@data$normcount[i])){
+  usa_basemap@data$normcount[i] <- "0"
+  }
+  else
+  {
+    i+1
+  }
+}
 #group counts
 usa_basemap@data$normcount <- as.numeric(usa_basemap@data$normcount)
-usa_basemap@data$groups <- cut(usa_basemap@data$normcount, breaks=c(-1,0,2,5,9,15,25), labels=c("0","1-2","3-5","6-9","10-15",">16"))
+usa_basemap@data$groups <- cut(usa_basemap@data$normcount, breaks=c(-1,0,2,5,9,15,25), labels=c("<1%","1-2%","3-5%","6-9%","10-15%","<25%"))
 #convert to df for ggplot
 usa_basemap@data$id = rownames(usa_basemap@data)
 usa_basemap.points = fortify(usa_basemap, region="id")
 usa_basemap.df = join(usa_basemap.points, usa_basemap@data, by="id")
 #plot
+colors <- brewer.pal(6, "Greens")
+colors[1] <- "gray80"
 map_obsperstatenorm <- ggplot(usa_basemap.df) +  
   aes(long, lat, group = group, fill = groups) + 
   geom_polygon() +
   theme_map() +
-  scale_fill_brewer(palette="Greens") +
+  scale_fill_manual(values=colors) +
   labs(x = NULL, 
          y = NULL, 
-         title = "iNaturalist research-grade observations of medically-important spider genera (normalized)", 
+         title = "% of total iNaturalist research-grade spider observations per state that are medically-important", 
          subtitle = "(December 31 1979-February 18 2019)", 
          caption = "Available from https://www.inaturalist.org. Accessed February 18 2019") +
   coord_sf(crs = st_crs(WGS84_proj), xlim=c(-124.7, -67.1), ylim = c(25.2, 49.4)) + annotation_north_arrow(style = north_arrow_fancy_orienteering, location = "tr", which_north = "true") + 
@@ -331,5 +367,5 @@ map_obsperstatenorm <- ggplot(usa_basemap.df) +
   theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.title = element_blank(), legend.background=element_blank()) + borders("state", colour = "gray90", fill = NA)
 map_obsperstatenorm
 #export dataframes
-write.csv(usa_basemap.df,"C:/Users/Julian/Downloads/R_files_distribution/map_obsperstatenorm.csv", row.names = FALSE)
+write.csv(usa_basemap.df, here::here("map_obsperstatenorm.csv"), row.names = FALSE)
 ```
