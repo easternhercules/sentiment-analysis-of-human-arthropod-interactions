@@ -28,6 +28,7 @@ library(dplyr)
 library(extrafont)
 library(spatialEco)
 census_api_key("redacted")
+#here::set_here("R_files_distribution")
 here::here("R_files_distribution")
 options(digits=5)
 ```
@@ -238,10 +239,34 @@ for(i in 1:nrow(obsperstate_joined)) {
     i+1
   }
 }
+#normalize medically-important spider observations by state population
+#get ACS data
+v18 <- load_variables(2018, "acs5", cache = TRUE)
+v18
+pop <- get_acs(geography = "state", variables = "B01003_001", year = 2018, geometry = FALSE)
+pop$stateinUSA <- pop$NAME
+pop$estpop <- pop$estimate
+pop <- subset(pop, select=-c(NAME, estimate, GEOID, variable, moe))
+#calculate for observations per state
+obsperstate_joined <- left_join(obsperstate_joined, pop, by = "stateinUSA")
+remove(v18, pop)
+obsperstate_joined$normcount2 <- NA
+for(i in 1:nrow(obsperstate_joined)) {
+  if(is.na(obsperstate_joined$normcount2[i])){
+  obsperstate_joined$normcount2[i] <- ((obsperstate_joined$totalobscount[i]/obsperstate_joined$estpop[i]) * 100000)
+  }
+  else
+  {
+    i+1
+  }
+}
 #round
 obsperstate_joined$normcount <- format(round(obsperstate_joined$normcount, 2), nsmall = 2)
 obsperstate_joined$normcount <- as.numeric(obsperstate_joined$normcount)
-col_order <- c("stateinUSA", "obscount", "totalobscount", "normcount")
+obsperstate_joined$normcount2 <- format(round(obsperstate_joined$normcount2, 2), nsmall = 2)
+obsperstate_joined$normcount2 <- as.numeric(obsperstate_joined$normcount2)
+#order by percentage of medically-important observations
+col_order <- c("stateinUSA", "obscount", "totalobscount", "normcount", "estpop", "normcount2")
 obsperstate_joined <- obsperstate_joined[, col_order]
 obsperstate_joined <- obsperstate_joined[order(-obsperstate_joined$normcount),]
 remove(col_order)
