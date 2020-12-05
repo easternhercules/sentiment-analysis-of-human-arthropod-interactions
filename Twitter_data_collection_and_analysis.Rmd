@@ -34,6 +34,7 @@ library(igraph)
 library(ggraph)
 library(tidycensus)
 library(tidyverse)
+library(spatialEco)
 #sentiment analysis
 library(lexicon)
 library(saotd)
@@ -47,6 +48,7 @@ library(extrafont)
 library(maps)
 library(data.table)
 library(raster)
+library(sf)
 library(sp)
 library(maptools)
 library(ggplot2)
@@ -55,8 +57,9 @@ library(rgdal)
 library(ggthemes)
 library(ggsn)
 library(dplyr)
+library(RColorBrewer)
 census_api_key("redacted")
-here::set_here("R_files_Twitter")
+#here::set_here("R_files_Twitter")
 here::here("R_files_Twitter")
 options(digits=5)
 ```
@@ -102,15 +105,15 @@ save_as_csv(spider_tweets, here::here("data", "spiders06062020BIGx"), prepend_id
 
 ```{r readtweets}
 #read
-spider_tweets1 <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIG1.csv"), unflatten = FALSE)
-spider_tweets2 <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIG2.csv"), unflatten = FALSE)
-spider_tweets3 <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIG3.csv"), unflatten = FALSE)
-spider_tweets4 <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIG4.csv"), unflatten = FALSE)
-spider_tweets5 <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIG5.csv"), unflatten = FALSE)
-spider_tweets6 <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIG6.csv"), unflatten = FALSE)
-spider_tweets7 <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIG7.csv"), unflatten = FALSE)
-spider_tweets8 <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIG8.csv"), unflatten = FALSE)
-spider_tweets9 <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIG9.csv"), unflatten = FALSE)
+spider_tweets1 <- read_twitter_csv(here::here("data", "spiders06062020BIG1.csv"), unflatten = FALSE)
+spider_tweets2 <- read_twitter_csv(here::here("data", "spiders06062020BIG2.csv"), unflatten = FALSE)
+spider_tweets3 <- read_twitter_csv(here::here("data", "spiders06062020BIG3.csv"), unflatten = FALSE)
+spider_tweets4 <- read_twitter_csv(here::here("data", "spiders06062020BIG4.csv"), unflatten = FALSE)
+spider_tweets5 <- read_twitter_csv(here::here("data", "spiders06062020BIG5.csv"), unflatten = FALSE)
+spider_tweets6 <- read_twitter_csv(here::here("data", "spiders06062020BIG6.csv"), unflatten = FALSE)
+spider_tweets7 <- read_twitter_csv(here::here("data", "spiders06062020BIG7.csv"), unflatten = FALSE)
+spider_tweets8 <- read_twitter_csv(here::here("data", "spiders06062020BIG8.csv"), unflatten = FALSE)
+spider_tweets9 <- read_twitter_csv(here::here("data", "spiders06062020BIG9.csv"), unflatten = FALSE)
 #append
 spider_tweetsbind12 <- rbind(spider_tweets1, spider_tweets2)
 spider_tweetsbind34 <- rbind(spider_tweets3, spider_tweets4)
@@ -135,7 +138,6 @@ cat("--------------------")
 cat('\n')
 #for each duplicate print and examine
 for(i in 1:nrow(spider_tweets)) {
-  
   if(spider_tweets$textisunique[i] == FALSE){
   cat(spider_tweets$text[i], spider_tweets$screen_name[i], spider_tweets$status_id[i], sep = '\n')
     cat('\n')
@@ -171,7 +173,6 @@ spider_tweets_nodup <- subset(spider_tweets,
 spider_tweets_nodup$textisunique <- isUnique(spider_tweets_nodup$text)
 cat(which(spider_tweets_nodup$textisunique == FALSE))
 for(i in 1:nrow(spider_tweets_nodup)) {
-  
   if(spider_tweets_nodup$textisunique[i] == FALSE){
   cat(spider_tweets_nodup$text[i], spider_tweets_nodup$screen_name[i], spider_tweets_nodup$status_id[i], sep = '\n')
     cat('\n')
@@ -242,12 +243,12 @@ remove(spider_tweets_sep, spider_tweets_nonacoords)
 
 ```{r cleanexport}
 #export
-save_as_csv(spider_tweets, driver="CSV", here::here("R_files_Twitter", "data", "spiders06062020BIGclean"), unflatten = FALSE))
+save_as_csv(spider_tweets, driver="CSV", here::here("data", "spiders06062020BIGclean"), unflatten = FALSE))
 ```
 
 ```{r cleanread}
 #read
-spider_tweets <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIGclean.csv"), unflatten = FALSE)
+spider_tweets <- read_twitter_csv(here::here("data", "spiders06062020BIGclean.csv"), unflatten = FALSE)
 ```
 
 ```{r tweetstates}
@@ -310,12 +311,12 @@ remove(spider_tweets_nomonkeys, spider_tweets_nomonkeys2)
 
 ```{r locatedexport}
 #export
-save_as_csv(spider_tweets_reordered, here::here("R_files_Twitter", "data","spiders06062020BIGlocated.csv"), prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
+save_as_csv(spider_tweets_reordered, here::here("data","spiders06062020BIGlocated.csv"), prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
 ```
 
 ```{r locatedread}
 #read
-spider_tweets_reordered <- read_twitter_csv(here::here("R_files_Twitter", "data","spiders06062020BIGlocated.csv"), unflatten = FALSE)
+spider_tweets_reordered <- read_twitter_csv(here::here("data","spiders06062020BIGlocated.csv"), unflatten = FALSE)
 #put back into spatial format
 spider_tweets_reordered$minlongX <- as.numeric(spider_tweets_reordered$minlongX)
 spider_tweets_reordered$maxlongX <- as.numeric(spider_tweets_reordered$maxlongX)
@@ -332,7 +333,7 @@ proj4string(spider_tweets_reordered) <- CRS(WGS84_proj)
 
 ```{r doesfollow}
 #per Timothy Sparklin, Office of Research Protections and Compliance @ UMBC: One of our privacy tests we use asks if anyone on the research team (including the advisor) has a previous or existing relationship with any of the known tweet author(s). You may or may not know if such a relationship exists, but given the specific topic (medically-important spiders) and even if the tweet source data is public, it's important to know if anyone is a visitor or follower of potential authors. If yes, it's recommended that you no longer be a visitor/follower as you would be actively collecting data from the Twitter feed. This is not a regulatory requirement, but an ethical recommendation that recognizes that an expectation of privacy may exist. If you are following anyone related to the data collected on this topic, they should be unfollowed for the duration of the research.
-spider_tweets_reordered <- read_twitter_csv(here::here("R_files_Twitter", "data","spiders06062020BIGlocated.csv"), unflatten = FALSE)
+spider_tweets_reordered <- read_twitter_csv(here::here("data","spiders06062020BIGlocated.csv"), unflatten = FALSE)
 following_list <- read.csv("c:/Users/ges_student/Desktop/Julian/following_list.csv")
 doesfollow <- (spider_tweets_reordered$screen_name %in% following_list$following)
 for(i in 1:nrow(spider_tweets_reordered)) {
@@ -490,12 +491,12 @@ remove(spider_tweets_nolongreplies, spider_tweets_nolongreplies2)
 
 ```{r fixedexport}
 #export
-save_as_csv(spider_tweets_reordered@data, here::here("R_files_Twitter", "data", "spiders06062020BIGlocated.csv"), prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
+save_as_csv(spider_tweets_reordered@data, here::here("data", "spiders06062020BIGlocated.csv"), prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
 ```
 
 ```{r fixedread}
 #read
-spider_tweets_reordered <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIGlocated.csv"), unflatten = FALSE)
+spider_tweets_reordered <- read_twitter_csv(here::here("data", "spiders06062020BIGlocated.csv"), unflatten = FALSE)
 #put back into spatial format
 spider_tweets_reordered$minlongX <- as.numeric(spider_tweets_reordered$minlongX)
 spider_tweets_reordered$maxlongX <- as.numeric(spider_tweets_reordered$maxlongX)
@@ -522,6 +523,7 @@ graph <- ggplot(spider_tweets_reordered@data, aes(x=reorder(stateinUSA, stateinU
       labs(x = "Location",
       y = "Count",
       title = "Spider tweets by state (January 1 2019-December 31 2019)")
+graph
 ```
 
 ```{r cleantweets}
@@ -548,11 +550,11 @@ spider_tweets_clean %>%
 #merge redundant terms
 spider_tweets_merged <- merge_terms(spider_tweets_clean, term = "spiders", term_replacement = "spider")
 #export
-save_as_csv(spider_tweets_merged, here::here("R_files_Twitter", "data", "spiders06062020BIGmergedterms.csv"), prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
+save_as_csv(spider_tweets_merged, here::here("data", "spiders06062020BIGmergedterms.csv"), prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
 ```
 
 ```{r loadmerge}
-spider_tweets_merged <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIGmergedterms.csv"), unflatten = FALSE)
+spider_tweets_merged <- read_twitter_csv(here::here("data", "spiders06062020BIGmergedterms.csv"), unflatten = FALSE)
 ```
 
 ```{r grams}
@@ -642,11 +644,11 @@ spider_tweets_reordered@data$stringsentiment[i] <- getCustomSentiment(spider_twe
 #clean up
 remove(bing, spider_tweets_clean, spider_tweets_merged)
 #export
-save_as_csv(words, here::here("R_files_Twitter", "data", "words.csv"), prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
-save_as_csv(spider_tweets_reordered@data, here::here("R_files_Twitter", "data", "spiders06062020BIGsentiment.csv"), prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
+save_as_csv(words, here::here("data", "words.csv"), prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
+save_as_csv(spider_tweets_reordered@data, here::here("data", "spiders06062020BIGsentiment.csv"), prepend_ids = TRUE, na = "", fileEncoding = "UTF-8")
 #load
-words <- read_twitter_csv(here::here("R_files_Twitter", "data", "words.csv"), unflatten = FALSE)
-spider_tweets_sentiment <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIGsentiment.csv"), unflatten = FALSE)
+words <- read_twitter_csv(here::here("data", "words.csv"), unflatten = FALSE)
+spider_tweets_sentiment <- read_twitter_csv(here::here("data", "spiders06062020BIGsentiment.csv"), unflatten = FALSE)
 spider_tweets_sentiment$minlongX <- as.numeric(spider_tweets_sentiment$minlongX)
 spider_tweets_sentiment$maxlongX <- as.numeric(spider_tweets_sentiment$maxlongX)
 spider_tweets_sentiment$minlatY <- as.numeric(spider_tweets_sentiment$minlatY)
@@ -676,8 +678,20 @@ ggplot(posnegtweets, aes(factor(type), count, fill = sentiment)) + geom_bar(stat
   scale_fill_brewer(palette = "Set1") +
       labs(x = "Interaction",
       y = "Count",
-      title = "Engagement of 1000 most positive vs. 1000 most negative spider tweets")        #overall pos/neg string sentiment
-histogram <- hist(spider_tweets_sentiment@data$stringsentiment, main="Positive/negative sentiment of spider tweets", xlab="Sentiment", ylab="Frequency", labels=TRUE)
+      title = "Engagement of 1000 most positive vs. 1000 most negative spider tweets") +
+      annotate("text", x = 2, y = 7000, label = "likes: p = 5.76e-05, mean = 6.1415") +
+      annotate("text", x = 2, y = 6500, label = "retweets: p = 0.01828, mean = 0.6535")
+#overall pos/neg string sentiment
+histogram <- ggplot(data=spider_tweets_sentiment@data, aes(spider_tweets_sentiment@data$stringsentiment)) +
+                  geom_histogram() +
+                  labs(x="Sentiment",
+                  y="Frequency",
+                  title="Positive/negative sentiment of spider tweets") +
+                  stat_bin(binwidth=1, col="white") +
+    geom_text(stat='count', aes(label=..count..), position = position_stack(vjust = 1.05),size=4) +
+    scale_x_continuous(breaks = seq(-8,7,2)) +
+    annotate("text", x = 5, y = 22500, label = "p = 2.2e-16") +
+    annotate("text", x = 5, y = 20500, label = "mean = -0.1422473")
 histogram
 ```
 
@@ -764,7 +778,7 @@ sentimentovertime.aov <- aov(formula = stringsentiment ~ month,
 summary(sentimentovertime.aov)
 ```
 
-```{r maptweets}
+```{r maptweetspoints}
 #create basemap of the USA
 usa_plot <- ggplot() +
   borders("state", colour = "gray85", fill = "gray80") +
@@ -775,7 +789,7 @@ usa_plot +
   coord_sf(crs = WGS84_proj, xlim=c(-124.7, -67.1), ylim = c(25.2, 49.4)) + scale_size_continuous(range = c(1, 8), breaks = c(250, 500, 750, 1000)) +
   labs(title = "Locations of spider tweets (January 1 2019-December 31 2019)") + theme(plot.title = element_text(hjust = 0.5)) +
   annotation_scale(location = "bl", line_width = 0.5) + annotation_north_arrow(style = north_arrow_fancy_orienteering, location = "br", which_north = "true")
-#plot tweets with sentiment
+#plot tweets with sentiment as points
 palette <- colorRampPalette(c('red','blue'))
 spider_tweets_sentiment@data$color <- palette(3)[as.numeric(cut(spider_tweets_sentiment@data$stringsentiment,breaks = 3))]
 usa_plot +
@@ -783,4 +797,107 @@ usa_plot +
   coord_sf(crs = WGS84_proj, xlim=c(-124.7, -67.1), ylim = c(25.2, 49.4)) + scale_size_continuous(range = c(1, 8), breaks = c(250, 500, 750, 1000)) +
   labs(title = "Sentiment of spider tweets (January 1 2019-December 31 2019)") + theme(plot.title = element_text(hjust = 0.5)) +
   annotation_scale(location = "bl", line_width = 0.5) + annotation_north_arrow(style = north_arrow_fancy_orienteering, location = "br", which_north = "true")
+```
+
+```{r maptweetspolygons}
+usa_basemap <- getData('GADM', country='USA', level=1)
+#clean up
+usa_basemap@data$stateinUSA <- usa_basemap@data$NAME_1
+usa_basemap2 <- subset(usa_basemap, select=-c(GID_0, NAME_0, GID_1, NAME_1, VARNAME_1, NL_NAME_1, TYPE_1, ENGTYPE_1, CC_1, HASC_1))
+usa_basemap <- usa_basemap2
+remove(usa_basemap2)
+usa_basemap@data$id = rownames(usa_basemap@data)
+#get sentiment for each state
+#check for spatial overlap - http://www.nickeubank.com/wp-content/uploads/2015/10/RGIS2_MergingSpatialData_part1_Joins.html#spatial-spatial
+spider_tweets_sentiment2 <- aggregate(spider_tweets_sentiment$stringsentiment, by=list(Category=spider_tweets_sentiment$stateinUSA), FUN=mean)
+spider_tweets_sentiment2$stateinUSA <- spider_tweets_sentiment2$Category
+spider_tweets_sentiment2$statesentiment <- spider_tweets_sentiment2$x
+spider_tweets_sentiment2 <- subset(spider_tweets_sentiment2, select=-c(Category, x))
+usa_basemap@data <- left_join(usa_basemap@data, spider_tweets_sentiment2, by = "stateinUSA", copy=TRUE)
+remove(spider_tweets_sentiment2)
+#round
+usa_basemap@data$statesentiment <- format(round(usa_basemap@data$statesentiment, 2), nsmall = 2)
+#group counts
+usa_basemap@data$statesentiment <- as.numeric(usa_basemap@data$statesentiment)
+usa_basemap@data$groups <- cut(usa_basemap@data$statesentiment, breaks=c(-0.5,-0.31,-0.21,-0.11,-0.01,0.10), labels=c("<-0.31","-0.3 - -0.21","-0.2 - -0.11","-0.1 - -0.01","0=<"))
+#convert to df for ggplot
+usa_basemap.points = fortify(usa_basemap)
+knitr::opts_chunk$set(cache = TRUE, warning = FALSE,message = FALSE, cache.lazy = FALSE)
+usa_basemap.df = inner_join(usa_basemap.points, usa_basemap@data, by="id")
+#aggregate
+#plot tweets with sentiment as polygons
+colors <- brewer.pal(7, "RdBu")
+colors <- colors[-7]
+map_statesentiment <- ggplot(usa_basemap.df) +  
+  aes(long, lat, group = group, fill = groups) + 
+  geom_polygon() +
+  theme_map() +
+  scale_fill_manual(values=colors) +
+  labs(x = NULL, 
+         y = NULL, 
+         title = "Mean sentiment of spider tweets", 
+         subtitle = "(January 1 2019-December 31 2019)") +
+    annotate("text", x = -95.9, y = 25.3, size = 3, label = "Sentiment scale is from -1 to 1") +
+  coord_sf(crs = st_crs(WGS84_proj), xlim=c(-124.7, -67.1), ylim = c(25.2, 49.4)) +   annotation_north_arrow(style = north_arrow_fancy_orienteering, location = "tr", which_north = "true") + 
+  scale_size_continuous(range = c(1, 8), breaks = c(250, 500, 750, 1000)) + 
+  annotation_scale(location = "br", line_width = 0.5) + 
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.title = element_blank(), legend.background=element_blank()) + borders("state", colour = "gray80", fill = NA)
+map_statesentiment
+```
+
+```{r normalize}
+#get ACS data
+v18 <- load_variables(2018, "acs5", cache = TRUE)
+v18
+pop <- get_acs(geography = "state", variables = "B01003_001", year = 2018, geometry = FALSE)
+pop$stateinUSA <- pop$NAME
+pop$estpop <- pop$estimate
+pop <- subset(pop, select=-c(NAME, estimate, GEOID, variable, moe))
+#get state abbreviations
+usa_basemap <- getData('GADM', country='USA', level=1)
+usa_basemap$stateinUSA <- usa_basemap$NAME_1
+usa_basemap$stateinUSAabbr <- substring(usa_basemap$HASC_1,4,5)
+usa_basemap <- subset(usa_basemap, select=c(stateinUSA, stateinUSAabbr))
+pop <- left_join(pop, usa_basemap@data, by = "stateinUSA")
+#get number of tweets per state
+tweetsperstate <- spider_tweets_sentiment %>% count(stateinUSA)
+tweetsperstate$tweetcount <- tweetsperstate$n
+tweetsperstate <- subset(tweetsperstate, select=-c(n))
+#calculate
+tweetsandpop <- left_join(tweetsperstate, pop, by = "stateinUSA")
+remove(v18, pop)
+tweetsandpop$normcount <- NA
+for(i in 1:nrow(tweetsandpop)) {
+  if(is.na(tweetsandpop$normcount[i])){
+  tweetsandpop$normcount[i] <- ((tweetsandpop$tweetcount[i]/tweetsandpop$estpop[i]) * 100000)
+  }
+  else
+  {
+    i+1
+  }
+}
+#round and order
+tweetsandpop$normcount <- format(round(tweetsandpop$normcount, 2), nsmall = 2)
+tweetsandpop$normcount <- as.numeric(tweetsandpop$normcount)
+col_order <- c("stateinUSA", "stateinUSAabbr", "tweetcount", "estpop", "normcount")
+tweetsandpop <- tweetsandpop[, col_order]
+tweetsandpop <- tweetsandpop[order(-tweetsandpop$normcount),]
+remove(col_order)
+#spider tweets vs. population
+tweetsandpop.aov <- aov(formula = estpop ~ normcount,
+                   data = tweetsandpop)
+tweetsandpop.lm <- lm(formula = estpop ~ normcount,
+                   data = tweetsandpop)
+summary(tweetsandpop.aov)
+summary(tweetsandpop.lm)
+mean(tweetsandpop$normcount)
+plottweetsandpop <- ggplot(tweetsandpop, aes(x = normcount, y = estpop)) + 
+  geom_point(col="#3792cb") +
+  geom_text(label=tweetsandpop$stateinUSAabbr) +
+  labs(x = "Tweets about spiders per 100,000 people", 
+         y = "Population", 
+         title = "Spider-related tweets per state vs. state population") +
+  annotate("text", x = 35, y = 3e+07, label = "p = 0.26") +
+  annotate("text", x = 35, y = 2e+07, label = "mean(x) = 12.829")
+plottweetsandpop + scale_y_continuous(trans = 'log10')
 ```
