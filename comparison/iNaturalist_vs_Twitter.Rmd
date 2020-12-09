@@ -6,6 +6,7 @@ output: html_document
 ```{r setup, include=FALSE, echo=FALSE}
 lazyLoad = TRUE
 #packages - use devtools or remotes for github versions
+library(here)
 library(rtweet)
 library(sp)
 library(sf)
@@ -24,6 +25,9 @@ library(ggsn)
 library(dplyr)
 library(extrafont)
 library(spatialEco)
+here::set_here("tweet_distribution_comparison")
+here::here("tweet_distribution_comparison")
+options(digits=5)
 ```
 
 ```{r update}
@@ -33,9 +37,9 @@ update.packages()
 
 ```{r read}
 #read
-spider_tweets_sentiment <- read_twitter_csv("C:/Users/Julian/Downloads/R_files_Twitter/data/spiders06062020BIGsentiment.csv", unflatten = FALSE)
-obsperstate <- read.csv("C:/Users/Julian/Downloads/R_files_distribution/obsperstate.csv")
-speciesperstate <- read.csv("C:/Users/Julian/Downloads/R_files_distribution/speciesperstate.csv")
+spider_tweets_sentiment <- read_twitter_csv(here::here("data", "spiders06062020BIGsentiment.csv"), unflatten = FALSE)
+obsperstate <- read.csv(here::here("R_files_distribution", "obsperstate.csv"))
+speciesperstate <- read.csv(here::here("R_files_distribution", "speciesperstate.csv"))
 ```
 
 ```{r mapobservations}
