@@ -1,0 +1,252 @@
+---
+title: "Google_search_comparison"
+author: "Julian Holman"
+date: "12/7/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+#data
+library(here)
+library(data.table)
+library(dplyr)
+library(tidyverse)
+library(rtweet)
+library(DescTools)
+library(zoo)
+#plotting
+library(sf)
+library(raster)
+library(scales)
+library(RColorBrewer)
+library(ggspatial)
+library(ggthemes)
+library(ggplot2)
+lazyLoad=TRUE
+here::here()
+options(digits=5)
+```
+
+```{r read}
+#interest over time for "spider", "widow spider", and "recluse spider" in the United States during 2019 - on a relative scale from 0 to 100
+#read
+interestovertime <- read.csv(here::here("Google_search_comparison", "data", "all", "interestovertime2.csv"))
+interestovertime$week <- interestovertime[,1]
+interestovertime <- subset(interestovertime, select=-c(1))
+col_order <- c("week", "interest_spider", "interest_widowspider", "interest_reclusespider")
+interestovertime <- interestovertime[, col_order]
+remove(col_order)
+#breakdown by subregion for "spider", "widow spider", and "recluse spider" in the United States during 2019 - as a percentage
+#read
+breakdownbysubregion <- read.csv(here::here("Google_search_comparison", "data", "all", "breakdownbysubregion2.csv"))
+breakdownbysubregion$stateinUSA <- breakdownbysubregion[,1]
+breakdownbysubregion <- subset(breakdownbysubregion, select=-c(1))
+col_order <- c("stateinUSA", "interest_spider", "interest_widowspider", "interest_reclusespider")
+breakdownbysubregion <- breakdownbysubregion[, col_order]
+remove(col_order)
+#remove "%"
+breakdownbysubregion$interest_spider <- as.numeric(gsub("%", "", breakdownbysubregion$interest_spider))
+breakdownbysubregion$interest_widowspider <- as.numeric(gsub("%", "", breakdownbysubregion$interest_widowspider))
+breakdownbysubregion$interest_reclusespider <- as.numeric(gsub("%", "", breakdownbysubregion$interest_reclusespider))
+```
+
+```{r plotinterestovertime}
+#stats
+mean(interestovertime$interest_spider)
+mean(interestovertime$interest_widowspider)
+mean(interestovertime$interest_reclusespider)
+#pivot and order
+interestovertime <- interestovertime %>%
+   pivot_longer(!week, names_to = "search", values_to = "interest")
+interestovertime$search <- factor(interestovertime$search, levels = c("interest_spider", "interest_widowspider", "interest_reclusespider"))
+#specify date column
+interestovertime$week <- as.Date(interestovertime$week)
+#plot
+plotinterestovertime <- ggplot(interestovertime) +
+  aes(x=week,y=interest,group=search,color=search) +
+  geom_line(lwd=1) +
+  scale_color_manual(values=c("red", "orange", "green"), labels = c("spider", "widow spider", "recluse spider")) +
+  labs(x = "Date", 
+         y = "Interest", 
+         title = "Google Search interest over time") +
+  scale_x_date(date_labels = "%b %Y", limit=c(as.Date("2019-01-01"),as.Date("2019-12-31"))) +
+  theme(legend.title = element_blank(), legend.position="top") +
+  annotate("text", x = c(as.Date("2019-09-01")), y = 62.5, label = "mean = 57.79", size=3.5) +
+  annotate("text", x = c(as.Date("2019-08-01")), y = 0, label = "mean = 5.25", size=3.5) +
+  annotate("text", x = c(as.Date("2019-08-01")), y = 17.5, label = "mean = 7.00", size=3.5)
+plotinterestovertime
+```
+
+```{r plotinterestandsentiment}
+#read in Twitter data
+spider_tweets_sentiment <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIGsentiment.csv"), unflatten = FALSE)
+#subset
+spider_interestovertime <- subset(interestovertime, search == "interest_spider")
+#trim dates
+spider_tweets_sentiment$month <- StrLeft(spider_tweets_sentiment$created_at, n=7)
+spider_interestovertime$month <- StrLeft(spider_interestovertime$week, n=7)
+#rescale
+spider_interestovertime$interest_res <- rescale(spider_interestovertime$interest)
+#group
+spider_tweets_sentiment <- spider_tweets_sentiment %>%
+  group_by(month) %>%
+  summarize(m = mean(stringsentiment)) %>%
+  ungroup()
+spider_interestovertime <- spider_interestovertime %>%
+  group_by(month) %>%
+  summarize(m = mean(interest_res)) %>%
+  ungroup()
+#specify date column
+spider_tweets_sentiment$month <- as.Date(as.yearmon(spider_tweets_sentiment$month))
+spider_interestovertime$month <- as.Date(as.yearmon(spider_interestovertime$month))
+#statistics
+mean(spider_tweets_sentiment$m)
+mean(spider_interestovertime$m)
+#plot
+plotinterestandsentiment <- ggplot() +
+  geom_line(data=spider_tweets_sentiment, aes(x=month, y=m, color="blue"), lwd=1) +
+  geom_line(data=spider_interestovertime, aes(x=month, y=m, color="red"), lwd=1) +
+  scale_color_manual(values=c("red", "blue"), labels = c("tweet sentiment", "search interest")) +
+      labs(x = "Date",
+      y = "Value",
+      title = "Change in Google interest for 'spider' vs. in sentiment of tweets over time") +
+  annotate("text", x = c(as.Date("2019-07-01")), y = 1, size = 3, label = "Search interest rescaled from 0-100 to 0-1") +
+  annotate("text", x = c(as.Date("2019-08-01")), y = -0.10, label = "mean = -0.13", size=3.5) +
+  annotate("text", x = c(as.Date("2019-08-01")), y = 0.70, label = "mean = 0.42", size=3.5) +
+  scale_x_date(date_labels = "%b %Y", limit=c(as.Date("2019-01-01"),as.Date("2019-12-31"))) +
+  theme(legend.title = element_blank(), legend.position="top")
+plotinterestandsentiment
+```
+
+```{r mapspidersearches}
+usa_basemap <- getData('GADM', country='USA', level=1)
+#clean up
+usa_basemap@data$stateinUSA <- usa_basemap@data$NAME_1
+usa_basemap2 <- subset(usa_basemap, select=-c(GID_0, NAME_0, GID_1, NAME_1, VARNAME_1, NL_NAME_1, TYPE_1, ENGTYPE_1, CC_1, HASC_1))
+usa_basemap <- usa_basemap2
+remove(usa_basemap2)
+usa_basemap@data$id = rownames(usa_basemap@data)
+#get searches for each state
+interest_spider <- read.csv(here::here("Google_search_comparison", "data", "spideronly", "geoMap2.csv"))
+interest_spider$stateinUSA <- interest_spider[,1]
+interest_spider <- subset(interest_spider, select=-c(1))
+col_order <- c("stateinUSA", "interest")
+interest_spider <- interest_spider[, col_order]
+remove(col_order)
+usa_basemap@data <- left_join(usa_basemap@data, interest_spider, by = "stateinUSA", copy=TRUE)
+remove(interest_spider)
+#group counts
+usa_basemap@data$interest <- as.numeric(usa_basemap@data$interest)
+usa_basemap@data$groups <- cut(usa_basemap@data$interest, breaks=c(25,49,74,99,100), labels=c("25-49","50-74","75-99","100"))
+#convert to df for ggplot
+usa_basemap.points = fortify(usa_basemap)
+knitr::opts_chunk$set(cache = TRUE, warning = FALSE,message = FALSE, cache.lazy = FALSE)
+usa_basemap.df = inner_join(usa_basemap.points, usa_basemap@data, by="id")
+#plot tweets with sentiment as polygons
+WGS84_proj = "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
+map_spidersearches <- ggplot(usa_basemap.df) +  
+  aes(long, lat, group = group, fill = groups) + 
+  geom_polygon() +
+  theme_map() +
+  scale_fill_brewer(palette="YlGnBu") +
+  labs(x = NULL, 
+         y = NULL, 
+         title = "Google Search interest for 'spider' by state", 
+         subtitle = "(January 1 2019-December 31 2019)") +
+  coord_sf(crs = st_crs(WGS84_proj), xlim=c(-124.7, -67.1), ylim = c(25.2, 49.4)) +   annotation_north_arrow(style = north_arrow_fancy_orienteering, location = "tr", which_north = "true") +
+  scale_size_continuous(range = c(1, 8), breaks = c(250, 500, 750, 1000)) + 
+  annotation_scale(location = "br", line_width = 0.5) + 
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.title = element_blank(), legend.background=element_blank()) + borders("state", colour = "gray90", fill = NA)
+map_spidersearches
+```
+
+```{r mapwidowspidersearches}
+usa_basemap <- getData('GADM', country='USA', level=1)
+#clean up
+usa_basemap@data$stateinUSA <- usa_basemap@data$NAME_1
+usa_basemap2 <- subset(usa_basemap, select=-c(GID_0, NAME_0, GID_1, NAME_1, VARNAME_1, NL_NAME_1, TYPE_1, ENGTYPE_1, CC_1, HASC_1))
+usa_basemap <- usa_basemap2
+remove(usa_basemap2)
+usa_basemap@data$id = rownames(usa_basemap@data)
+#get searches for each state
+interest_widowspider <- read.csv(here::here("Google_search_comparison", "data", "widowspider", "geoMap2.csv"))
+interest_widowspider$stateinUSA <- interest_widowspider[,1]
+interest_widowspider <- subset(interest_widowspider, select=-c(1))
+col_order <- c("stateinUSA", "interest")
+interest_widowspider <- interest_widowspider[, col_order]
+remove(col_order)
+usa_basemap@data <- left_join(usa_basemap@data, interest_widowspider, by = "stateinUSA", copy=TRUE)
+remove(interest_widowspider)
+#group counts
+usa_basemap@data$interest <- as.numeric(usa_basemap@data$interest)
+usa_basemap@data$groups <- cut(usa_basemap@data$interest, breaks=c(-1,0,24,49,74,99,100), labels=c("0","1-24","25-49","50-74","75-99","100"))
+#convert to df for ggplot
+usa_basemap.points = fortify(usa_basemap)
+knitr::opts_chunk$set(cache = TRUE, warning = FALSE,message = FALSE, cache.lazy = FALSE)
+usa_basemap.df = inner_join(usa_basemap.points, usa_basemap@data, by="id")
+#plot tweets with sentiment as polygons
+WGS84_proj = "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
+colors <- brewer.pal(6, "YlGnBu")
+colors <- c("#FFFFFF", colors)
+colors <- colors[-5]
+map_widowspidersearches <- ggplot(usa_basemap.df) +  
+  aes(long, lat, group = group, fill = groups) + 
+  geom_polygon() +
+  theme_map() +
+  scale_fill_manual(values=colors) +
+  labs(x = NULL, 
+         y = NULL, 
+         title = "Google Search interest for 'widow spider' by state", 
+         subtitle = "(January 1 2019-December 31 2019)") +
+  coord_sf(crs = st_crs(WGS84_proj), xlim=c(-124.7, -67.1), ylim = c(25.2, 49.4)) +   annotation_north_arrow(style = north_arrow_fancy_orienteering, location = "tr", which_north = "true") +
+  scale_size_continuous(range = c(1, 8), breaks = c(250, 500, 750, 1000)) + 
+  annotation_scale(location = "br", line_width = 0.5) + 
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.title = element_blank(), legend.background=element_blank()) + borders("state", colour = "gray90", fill = NA)
+map_widowspidersearches
+```
+
+
+
+
+
+```{r mapreclusespidersearches}
+usa_basemap <- getData('GADM', country='USA', level=1)
+#clean up
+usa_basemap@data$stateinUSA <- usa_basemap@data$NAME_1
+usa_basemap2 <- subset(usa_basemap, select=-c(GID_0, NAME_0, GID_1, NAME_1, VARNAME_1, NL_NAME_1, TYPE_1, ENGTYPE_1, CC_1, HASC_1))
+usa_basemap <- usa_basemap2
+remove(usa_basemap2)
+usa_basemap@data$id = rownames(usa_basemap@data)
+#get searches for each state
+interest_reclusespider <- read.csv(here::here("Google_search_comparison", "data", "reclusespider", "geoMap2.csv"))
+interest_reclusespider$stateinUSA <- interest_reclusespider[,1]
+interest_reclusespider <- subset(interest_reclusespider, select=-c(1))
+col_order <- c("stateinUSA", "interest")
+interest_reclusespider <- interest_reclusespider[, col_order]
+remove(col_order)
+usa_basemap@data <- left_join(usa_basemap@data, interest_reclusespider, by = "stateinUSA", copy=TRUE)
+remove(interest_reclusespider)
+#group counts
+usa_basemap@data$interest <- as.numeric(usa_basemap@data$interest)
+usa_basemap@data$groups <- cut(usa_basemap@data$interest, breaks=c(0,24,49,74,99,100), labels=c("<25","25-49","50-74","75-99","100"))
+#convert to df for ggplot
+usa_basemap.points = fortify(usa_basemap)
+knitr::opts_chunk$set(cache = TRUE, warning = FALSE,message = FALSE, cache.lazy = FALSE)
+usa_basemap.df = inner_join(usa_basemap.points, usa_basemap@data, by="id")
+#plot tweets with sentiment as polygons
+WGS84_proj = "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
+map_reclusespidersearches <- ggplot(usa_basemap.df) +  
+  aes(long, lat, group = group, fill = groups) + 
+  geom_polygon() +
+  theme_map() +
+  scale_fill_brewer(palette="YlGnBu") +
+  labs(x = NULL, 
+         y = NULL, 
+         title = "Google Search interest for 'recluse spider' by state", 
+         subtitle = "(January 1 2019-December 31 2019)") +
+  coord_sf(crs = st_crs(WGS84_proj), xlim=c(-124.7, -67.1), ylim = c(25.2, 49.4)) +   annotation_north_arrow(style = north_arrow_fancy_orienteering, location = "tr", which_north = "true") +
+  scale_size_continuous(range = c(1, 8), breaks = c(250, 500, 750, 1000)) + 
+  annotation_scale(location = "br", line_width = 0.5) + 
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.title = element_blank(), legend.background=element_blank()) + borders("state", colour = "gray90", fill = NA)
+map_reclusespidersearches
+```
