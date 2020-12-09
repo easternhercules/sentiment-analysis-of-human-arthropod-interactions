@@ -227,7 +227,7 @@ plotobsandtotalobs <- ggplot(obs2@data, aes(x = normcount, y = totalobscount)) +
   labs(x = "% of total observations that are medically-important", 
          y = "Total spider (order Araneae) observations", 
          title = "Medically-important spiders vs. total spiders per state") +
-        annotate("text", x = 20, y = 10000, label = "p = 0.582") +
+        annotate("text", x = 20, y = 10000, label = "p = 0.58") +
         annotate("text", x = 20, y = 6500, label = "mean(x) = 4.04")
 plotobsandtotalobs + scale_y_continuous(trans = 'log10')
 #table
