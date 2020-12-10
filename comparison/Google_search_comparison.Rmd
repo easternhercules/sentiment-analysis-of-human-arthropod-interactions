@@ -6,10 +6,12 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE, echo=FALSE}
+lazyLoad=TRUE
 #data
 library(here)
 library(data.table)
 library(dplyr)
+library(tidycensus)
 library(tidyverse)
 library(rtweet)
 library(DescTools)
@@ -22,7 +24,7 @@ library(RColorBrewer)
 library(ggspatial)
 library(ggthemes)
 library(ggplot2)
-lazyLoad=TRUE
+census_api_key("redacted")
 here::here()
 options(digits=5)
 ```
@@ -61,7 +63,7 @@ interestovertime <- interestovertime %>%
 interestovertime$search <- factor(interestovertime$search, levels = c("interest_spider", "interest_widowspider", "interest_reclusespider"))
 #specify date column
 interestovertime$week <- as.Date(interestovertime$week)
-#plot
+#plot search interest over time for all terms
 plotinterestovertime <- ggplot(interestovertime) +
   aes(x=week,y=interest,group=search,color=search) +
   geom_line(lwd=1) +
@@ -102,7 +104,7 @@ spider_interestovertime$month <- as.Date(as.yearmon(spider_interestovertime$mont
 #statistics
 mean(spider_tweets_sentiment$m)
 mean(spider_interestovertime$m)
-#plot
+#plot search interest vs. tweet sentiment over time
 plotinterestandsentiment <- ggplot() +
   geom_line(data=spider_tweets_sentiment, aes(x=month, y=m, color="blue"), lwd=1) +
   geom_line(data=spider_interestovertime, aes(x=month, y=m, color="red"), lwd=1) +
@@ -245,4 +247,44 @@ map_reclusespidersearches <- ggplot(usa_basemap.df) +
   annotation_scale(location = "br", line_width = 0.5) + 
   theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.title = element_blank(), legend.background=element_blank()) + borders("state", colour = "gray90", fill = NA)
 map_reclusespidersearches
+```
+
+```{r plotinterestandsentiment2}
+usa_basemap <- getData('GADM', country='USA', level=1)
+spider_tweets_sentiment <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIGsentiment.csv"), unflatten = FALSE)
+#clean up
+usa_basemap@data$stateinUSA <- usa_basemap@data$NAME_1
+usa_basemap$stateinUSAabbr <- substring(usa_basemap$HASC_1,4,5)
+usa_basemap2 <- subset(usa_basemap, select=-c(GID_0, NAME_0, GID_1, NAME_1, VARNAME_1, NL_NAME_1, TYPE_1, ENGTYPE_1, CC_1, HASC_1))
+usa_basemap <- usa_basemap2
+remove(usa_basemap2)
+usa_basemap@data$id = rownames(usa_basemap@data)
+#get sentiment for each state
+#check for spatial overlap - http://www.nickeubank.com/wp-content/uploads/2015/10/RGIS2_MergingSpatialData_part1_Joins.html#spatial-spatial
+spider_tweets_sentiment2 <- aggregate(spider_tweets_sentiment$stringsentiment, by=list(Category=spider_tweets_sentiment$stateinUSA), FUN=mean)
+spider_tweets_sentiment2$stateinUSA <- spider_tweets_sentiment2$Category
+spider_tweets_sentiment2$statesentiment <- spider_tweets_sentiment2$x
+spider_tweets_sentiment2 <- subset(spider_tweets_sentiment2, select=-c(Category, x))
+usa_basemap@data <- left_join(usa_basemap@data, spider_tweets_sentiment2, by = "stateinUSA", copy=TRUE)
+remove(spider_tweets_sentiment)
+#round
+usa_basemap@data$statesentiment <- format(round(usa_basemap@data$statesentiment, 2), nsmall = 2)
+usa_basemap@data$statesentiment <- as.numeric(usa_basemap@data$statesentiment)
+#join
+spider_tweets_sentiment2 <- left_join(usa_basemap@data, breakdownbysubregion, by = "stateinUSA")
+#statistics
+interestandsentiment2.aov <- aov(formula = interest_spider ~ statesentiment,
+                   data = spider_tweets_sentiment2)
+summary(interestandsentiment2.aov)
+#plot
+plotinterestandsentiment2 <- ggplot(spider_tweets_sentiment2, aes(x = statesentiment, y = interest_spider)) + 
+  geom_point(col="#3792cb") +
+  geom_text(label=spider_tweets_sentiment2$stateinUSAabbr) +
+  stat_smooth(method = "lm", col = "blue") +
+  labs(x = "Mean state sentiment", 
+         y = "% interest for 'spider'", 
+         title = "Mean sentiment by state vs. Google Search interest for 'spider'") +
+        annotate("text", x = -0.4, y = 90, label = "p = 0.012") +
+        annotate("text", x = -0.4, y = 88.5, label = "mean(x) = -0.14")
+plotinterestandsentiment2
 ```
