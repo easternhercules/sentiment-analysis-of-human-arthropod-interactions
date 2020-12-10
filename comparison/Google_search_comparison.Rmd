@@ -205,10 +205,6 @@ map_widowspidersearches <- ggplot(usa_basemap.df) +
 map_widowspidersearches
 ```
 
-
-
-
-
 ```{r mapreclusespidersearches}
 usa_basemap <- getData('GADM', country='USA', level=1)
 #clean up
