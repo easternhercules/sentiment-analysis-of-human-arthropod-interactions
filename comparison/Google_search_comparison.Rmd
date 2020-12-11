@@ -284,7 +284,7 @@ plotinterestandsentiment2 <- ggplot(spider_tweets_sentiment2, aes(x = statesenti
   labs(x = "Mean state sentiment", 
          y = "% interest for 'spider'", 
          title = "Mean sentiment by state vs. Google Search interest for 'spider'") +
-        annotate("text", x = -0.4, y = 90, label = "p = 0.012") +
+        annotate("text", x = -0.4, y = 90, label = "p = 0.01") +
         annotate("text", x = -0.4, y = 88.5, label = "mean(x) = -0.14")
 plotinterestandsentiment2
 ```
