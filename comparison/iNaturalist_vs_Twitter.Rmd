@@ -37,7 +37,7 @@ update.packages()
 
 ```{r read}
 #read
-spider_tweets_sentiment <- read_twitter_csv(here::here("data", "spiders06062020BIGsentiment.csv"), unflatten = FALSE)
+spider_tweets_sentiment <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIGsentiment.csv"), unflatten = FALSE)
 obsperstate <- read.csv(here::here("R_files_distribution", "obsperstate.csv"))
 speciesperstate <- read.csv(here::here("R_files_distribution", "speciesperstate.csv"))
 ```
@@ -49,10 +49,10 @@ WGS84_proj = "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
 usa_basemap <- getData('GADM', country='USA', level=1)
 usa_basemap@data$stateinUSA <- usa_basemap@data$NAME_1
 usa_basemap@data <- join(usa_basemap@data, obsperstate, type="left")
-usa_basemap@data$obsNA <- is.na(usa_basemap@data$count)
+usa_basemap@data$obsNA <- is.na(usa_basemap@data$obscount)
 for(i in 1:nrow(usa_basemap@data)) {
   if(usa_basemap@data$obsNA[i] == "TRUE"){
-  usa_basemap@data$count[i] <- "0"
+  usa_basemap@data$obscount[i] <- "0"
   }
   else
   {
@@ -60,8 +60,8 @@ for(i in 1:nrow(usa_basemap@data)) {
   }
 }
 #group counts
-usa_basemap@data$count <- as.numeric(usa_basemap@data$count)
-usa_basemap@data$groups <- cut(usa_basemap@data$count, breaks=c(-1,0,5,10,20,50,100,500,2500), labels=c("0","1-5","6-10","11-20","21-50","51-100","100-500",">500"))
+usa_basemap@data$obscount <- as.numeric(usa_basemap@data$obscount)
+usa_basemap@data$groups <- cut(usa_basemap@data$obscount, breaks=c(-1,0,5,10,20,50,100,500,2500), labels=c("0","1-5","6-10","11-20","21-50","51-100","100-500",">500"))
 #convert to df for ggplot
 usa_basemap@data$id = rownames(usa_basemap@data)
 usa_basemap.points = fortify(usa_basemap, region="id")
@@ -168,43 +168,66 @@ map_speciesvstweets <- ggplot() +
 map_speciesvstweets
 ```
 
-```{r stats}
+```{r plotobservationsandretweets}
 #calculate statistics
 #observations per state vs. positive retweets
-obsperstate$observations <- obsperstate$count
-obsperstate <- subset(obsperstate, select = -c(count))
-mean(obsperstate$observations)
+obsperstate_joined <- read.csv(here::here("R_files_distribution", "obsperstate_joined.csv"))
+obsperstate_joined$observations <- obsperstate_joined$normcount
+obsperstate_joined <- subset(obsperstate_joined, select = -c(normcount))
+mean(obsperstate_joined$observations)
 posrtssum <- aggregate(retweet_count ~ stateinUSA, postweets, sum)
-obsandposrts <- inner_join(obsperstate, posrtssum, by="stateinUSA")
+obsandposrts <- inner_join(obsperstate_joined, posrtssum, by="stateinUSA")
+#calculate statistics
 obsandposrts.aov <- aov(formula = retweet_count ~ observations,
                    data = obsandposrts)
 obsandposrts.lm <- lm(formula = retweet_count ~ observations,
                    data = obsandposrts)
 summary(obsandposrts.aov)
 summary(obsandposrts.lm)
+mean(obsandposrts$observations)
 mean(obsandposrts$retweet_count)
+#get state abbreviations
+usa_basemap <- getData('GADM', country='USA', level=1)
+usa_basemap$stateinUSA <- usa_basemap$NAME_1
+usa_basemap$stateinUSAabbr <- substring(usa_basemap$HASC_1,4,5)
+usa_basemap <- subset(usa_basemap, select=c(stateinUSA, stateinUSAabbr))
+obsandposrts <- left_join(obsandposrts, usa_basemap@data, by = "stateinUSA")
 plotpos <- ggplot(obsandposrts, aes(x = observations, y = retweet_count)) + 
-  geom_point() +
+  geom_point(col="#3792cb") +
+  geom_text(label=obsandposrts$stateinUSAabbr) +
   stat_smooth(method = "lm", col = "blue") +
-  labs(x = "Observations", 
+  labs(x = "% of total observations that are medically-important", 
          y = "Retweets", 
-         title = "Observations per state vs. top 1000 positive spider tweets by retweet count")
-plotpos + scale_x_continuous(trans = 'log10')
+         title = "Medically-important observations vs. 1000 most retweeted positive spider tweets") +
+  annotate("text", x = 17.5, y = 50, label = "p = 0.42") +
+  annotate("text", x = 17.5, y = 45, label = "mean(x) = 4.04, mean(y) = 7.60")
+plotpos
 #observations per state vs. negative retweets
 negrtssum <- aggregate(retweet_count ~ stateinUSA, negtweets, sum)
-obsandnegrts <- inner_join(obsperstate, negrtssum, by="stateinUSA")
+obsandnegrts <- inner_join(obsperstate_joined, negrtssum, by="stateinUSA")
+#calculate statistics
 obsandnegrts.aov <- aov(formula = retweet_count ~ observations,
                    data = obsandnegrts)
 obsandnegrts.lm <- lm(formula = retweet_count ~ observations,
                    data = obsandnegrts)
 summary(obsandnegrts.aov)
 summary(obsandnegrts.lm)
+mean(obsandnegrts$observations)
 mean(obsandnegrts$retweet_count)
+#get state abbreviations
+usa_basemap <- getData('GADM', country='USA', level=1)
+usa_basemap$stateinUSA <- usa_basemap$NAME_1
+usa_basemap$stateinUSAabbr <- substring(usa_basemap$HASC_1,4,5)
+usa_basemap <- subset(usa_basemap, select=c(stateinUSA, stateinUSAabbr))
+obsandnegrts <- left_join(obsandnegrts, usa_basemap@data, by = "stateinUSA")
 plotneg <- ggplot(obsandnegrts, aes(x = observations, y = retweet_count)) + 
-  geom_point() +
+  geom_point(col="#ffcccb") +
+  geom_text(label=obsandnegrts$stateinUSAabbr) +
   stat_smooth(method = "lm", col = "red") +
-  labs(x = "Observations", 
+  labs(x = "% of total observations that are medically-important", 
          y = "Retweets", 
-         title = "Observations per state vs. top 1000 negative spider tweets by retweet count")
-plotneg + scale_x_continuous(trans = 'log10')
+         title = "Medically-important observations vs. 1000 most retweeted negative spider tweets") +
+  annotate("text", x = 17.5, y = 500, label = "p = 0.82") +
+  annotate("text", x = 17.5, y = 450, label = "mean(x) = 4.11, mean(y) = 22.67")
+plotneg
 ```
