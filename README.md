@@ -24,7 +24,8 @@ These are the .rmds containing the code used in my Master's thesis, *Sentiment A
 1. Convert tabular entries to points using latitude/longitude
 1. Ensure CRS match, check for spatial overlap with a basemap, and clip to area of interest
 1. Normalize by census data
-1. At this point you can create maps/graphs; if your results are off you can return to the previous steps and re-examine your dataset
+1. Create maps/graphs; if your results are off you can return to the previous steps and re-examine your dataset
+1. Export data from R and import to GeoDa for running Moran's I spatial autocorrelation
 
 * Downloading Twitter data
 
@@ -41,12 +42,12 @@ These are the .rmds containing the code used in my Master's thesis, *Sentiment A
 1. Get latitude/longitude from bounding box coordinates (separate bbox coords column, delete unnecessary new columns, transform new columns to numeric, get centroids of bbox using (minlong+maxlong)/2 and (minlat+maxlat)/2, check for and drop any entries where is.na=”TRUE”)
 1. Get state names by determining which entries do not have them, adding a projection to the coordinates from the previous step, checking for spatial overlap with a basemap, and using over to copy states to a new column
 1. Normalize by census data
-1. At this point you can create maps/graphs and perform sentiment analysis; if your results are off you can return to the previous steps and re-examine your dataset
+1. Create maps/graphs and perform sentiment analysis; if your results are off you can return to the previous steps and re-examine your dataset
+1. Export data from R and import to GeoDa for running Moran's I spatial autocorrelation
 
 * Combination
 
 1. For multi-layered analysis, you can overlay the results from processing the iNaturalist data and the Twitter data. You can also choose to incorporate Google Trends data
-2. Export data from R and import to GeoDa for running Moran's I spatial autocorrelation
 
 In the future these steps might change to require more/less due to addition or deprecation of various features or attributes by Twitter post-v1.1 API.
 
