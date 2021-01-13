@@ -579,6 +579,11 @@ tri
 #positive and negative words
 posneg <- posneg_words(spider_tweets_clean, 20, filterword = NULL)
 posneg
+#statistics
+posneg.aov <- aov(formula = n ~ Sentiment,
+                   data = posneg[["data"]])
+summary(posneg.aov)
+mean(posneg[["data"]]$n)
 ```
 
 ```{r bingsentiment}
@@ -679,8 +684,8 @@ ggplot(posnegtweets, aes(factor(type), count, fill = sentiment)) + geom_bar(stat
       labs(x = "Interaction",
       y = "Count",
       title = "Engagement of 1000 most positive vs. 1000 most negative spider tweets") +
-      annotate("text", x = 2, y = 7000, label = "likes: p = 5.76e-05, mean = 6.14") +
-      annotate("text", x = 2, y = 6500, label = "retweets: p = 0.02, mean = 0.65")
+      annotate("text", x = 2, y = 7000, label = "likes: t = 4.03, p = 5.8e-05, mean = 6.14") +
+      annotate("text", x = 2, y = 6500, label = "retweets: t = 2.36, p = 0.02, mean = 0.65")
 #overall pos/neg string sentiment
 histogram <- ggplot(data=spider_tweets_sentiment@data, aes(spider_tweets_sentiment@data$stringsentiment)) +
                   geom_histogram() +
@@ -690,6 +695,7 @@ histogram <- ggplot(data=spider_tweets_sentiment@data, aes(spider_tweets_sentime
                   stat_bin(binwidth=1, col="white") +
     geom_text(stat='count', aes(label=..count..), position = position_stack(vjust = 1.05),size=4) +
     scale_x_continuous(breaks = seq(-8,7,2)) +
+    annotate("text", x = 5, y = 24500, label = "t = -29") +
     annotate("text", x = 5, y = 22500, label = "p = 2.2e-16") +
     annotate("text", x = 5, y = 20500, label = "mean = -0.14")
 histogram
@@ -824,6 +830,8 @@ usa_basemap@data$statesentiment <- as.numeric(usa_basemap@data$statesentiment)
 #get difference between overall mean sentiment and state mean sentiment
 usa_basemap@data$diffsentiment <- as.numeric(usa_basemap@data$statesentiment - (-0.14))
 usa_basemap@data$groups <- cut(usa_basemap@data$diffsentiment, breaks=c(-0.35, -0.20, -0.10, -0.01, 0, 0.10, 0.20, 0.29), labels=c("<-0.20","-0.20 - -0.11","-0.10 - -0.01","0","0.01 - 0.10","0.11 - 0.20", "0.20<"))
+#export
+writeOGR(obj=usa_basemap, dsn=here::here("data", "meanchangesentimentshp"), layer="usa_basemap", driver="ESRI Shapefile")
 #convert to df for ggplot
 usa_basemap.points = fortify(usa_basemap)
 knitr::opts_chunk$set(cache = TRUE, warning = FALSE,message = FALSE, cache.lazy = FALSE)
@@ -902,6 +910,7 @@ plottweetsandpop <- ggplot(tweetsandpop, aes(x = normcount, y = estpop)) +
   labs(x = "Tweets about spiders per 100,000 people", 
          y = "Population", 
          title = "Spider-related tweets per state vs. state population") +
+  annotate("text", x = 35, y = 4.3e+07, label = "f = 1.31") +
   annotate("text", x = 35, y = 3e+07, label = "p = 0.26") +
   annotate("text", x = 35, y = 2e+07, label = "mean(x) = 12.83")
 plottweetsandpop + scale_y_continuous(trans = 'log10')
