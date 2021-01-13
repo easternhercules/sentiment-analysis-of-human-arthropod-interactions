@@ -9,6 +9,7 @@ These are the .rmds containing the code used in my Master's thesis, *Sentiment A
 * Twitter account with developer access + premium API subscription
 * Twitter dev environment
 * R libraries and dependencies
+* [GeoDa](https://geodacenter.github.io/)
 
 ## Summary of steps
 * Downloading iNaturalist data
@@ -45,6 +46,7 @@ These are the .rmds containing the code used in my Master's thesis, *Sentiment A
 * Combination
 
 1. For multi-layered analysis, you can overlay the results from processing the iNaturalist data and the Twitter data. You can also choose to incorporate Google Trends data
+2. Export data from R and import to GeoDa for running Moran's I spatial autocorrelation
 
 In the future these steps might change to require more/less due to addition or deprecation of various features or attributes by Twitter post-v1.1 API.
 
