@@ -16,6 +16,7 @@ library(plyr)
 library(rgdal)
 library(raster)
 library(rgeos)
+library(rgdal)
 library(maps)
 library(maptools)
 library(rmapshaper)
@@ -395,6 +396,7 @@ map_obsperstatenorm <- ggplot(usa_basemap.df) +
   annotation_scale(location = "br", line_width = 0.5) + 
   theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.title = element_blank(), legend.background=element_blank()) + borders("state", colour = "gray90", fill = NA)
 map_obsperstatenorm
-#export dataframes
+#export
 write.csv(usa_basemap.df, here::here("map_obsperstatenorm.csv"), row.names = FALSE)
+writeOGR(obj=usa_basemap, dsn=here::here("obsperstatenormshp"), layer="usa_basemap", driver="ESRI Shapefile")
 ```
