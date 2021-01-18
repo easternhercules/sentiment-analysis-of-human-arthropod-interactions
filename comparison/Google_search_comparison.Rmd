@@ -79,7 +79,7 @@ plotinterestovertime <- ggplot(interestovertime) +
 plotinterestovertime
 ```
 
-```{r plotinterestandsentiment}
+```{r plotinterestandtweets}
 #read in Twitter data
 spider_tweets_sentiment <- read_twitter_csv(here::here("R_files_Twitter", "data", "spiders06062020BIGsentiment.csv"), unflatten = FALSE)
 #subset
@@ -87,37 +87,39 @@ spider_interestovertime <- subset(interestovertime, search == "interest_spider")
 #trim dates
 spider_tweets_sentiment$month <- StrLeft(spider_tweets_sentiment$created_at, n=7)
 spider_interestovertime$month <- StrLeft(spider_interestovertime$week, n=7)
-#rescale
-spider_interestovertime$interest_res <- rescale(spider_interestovertime$interest)
 #group
 spider_tweets_sentiment <- spider_tweets_sentiment %>%
   group_by(month) %>%
-  summarize(m = mean(stringsentiment)) %>%
+  count() %>%
+  summarize(m = mean(n)) %>%
   ungroup()
 spider_interestovertime <- spider_interestovertime %>%
   group_by(month) %>%
-  summarize(m = mean(interest_res)) %>%
+  summarize(m = mean(interest)) %>%
   ungroup()
 #specify date column
 spider_tweets_sentiment$month <- as.Date(as.yearmon(spider_tweets_sentiment$month))
 spider_interestovertime$month <- as.Date(as.yearmon(spider_interestovertime$month))
+#rescale
+spider_tweets_sentiment$res <- rescale(spider_tweets_sentiment$m)
+spider_interestovertime$res <- rescale(spider_interestovertime$m)
 #statistics
-mean(spider_tweets_sentiment$m)
-mean(spider_interestovertime$m)
+mean(spider_tweets_sentiment$res)
+mean(spider_interestovertime$res)
 #plot search interest vs. tweet sentiment over time
-plotinterestandsentiment <- ggplot() +
-  geom_line(data=spider_tweets_sentiment, aes(x=month, y=m, color="blue"), lwd=1) +
-  geom_line(data=spider_interestovertime, aes(x=month, y=m, color="red"), lwd=1) +
-  scale_color_manual(values=c("red", "blue"), labels = c("tweet sentiment", "search interest")) +
+plotinterestandtweets <- ggplot() +
+  geom_line(data=spider_tweets_sentiment, aes(x=month, y=res, color="blue"), lwd=1) +
+  geom_line(data=spider_interestovertime, aes(x=month, y=res, color="red"), lwd=1) +
+  scale_color_manual(values=c("red", "blue"), labels = c("tweet volume", "search interest")) +
       labs(x = "Date",
       y = "Value",
-      title = "Change in Google interest for 'spider' vs. in sentiment of tweets over time") +
-  annotate("text", x = c(as.Date("2019-07-01")), y = 1, size = 3, label = "Search interest rescaled from 0-100 to 0-1") +
-  annotate("text", x = c(as.Date("2019-08-01")), y = -0.10, label = "mean = -0.13", size=3.5) +
-  annotate("text", x = c(as.Date("2019-08-01")), y = 0.70, label = "mean = 0.42", size=3.5) +
+      title = "Change in Google interest for 'spider' vs. in volume of tweets over time") +
+  annotate("text", x = c(as.Date("2019-07-01")), y = 1.1, size = 3, label = "Values rescaled to 0-1 (Google data formerly 0-100, Twitter data formerly 1000+)") +
+  annotate("text", x = c(as.Date("2019-12-01")), y = -0.1, label = "mean = 0.49", size=3.5, color = "red") +
+  annotate("text", x = c(as.Date("2019-12-01")), y = 0.3, label = "mean = 0.52", size=3.5, color = "blue") +
   scale_x_date(date_labels = "%b %Y", limit=c(as.Date("2019-01-01"),as.Date("2019-12-31"))) +
   theme(legend.title = element_blank(), legend.position="top")
-plotinterestandsentiment
+plotinterestandtweets
 ```
 
 ```{r mapspidersearches}
