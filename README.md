@@ -53,4 +53,4 @@ In the future these steps might change to require more/less due to addition or d
 
 ## Questions/comments
 
-@ me on [Twitter](https://twitter.com/easternhercules).
+@ me on [Twitter](https://twitter.com/easternhercules) or email `julianholman96 at gmail dot com`.
