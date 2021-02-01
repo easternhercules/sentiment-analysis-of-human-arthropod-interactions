@@ -43,7 +43,7 @@ These are the .rmds containing the code used in my Master's thesis, *Sentiment A
 1. Get state names by determining which entries do not have them, adding a projection to the coordinates from the previous step, checking for spatial overlap with a basemap, and using over to copy states to a new column
 1. Normalize by census data
 1. Create maps/graphs and perform sentiment analysis; if your results are off you can return to the previous steps and re-examine your dataset
-1. Export data from R and import to GeoDa for running Moran's I spatial autocorrelation
+1. Export data from R and import to GeoDa for running [Moran's I spatial autocorrelation](https://geodacenter.github.io/workbook/5a_global_auto/lab5a.html)
 
 * Combination
 
