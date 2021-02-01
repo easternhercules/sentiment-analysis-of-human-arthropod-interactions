@@ -262,7 +262,7 @@ usa_basemap <- usa_basemap2
 remove(usa_basemap2)
 usa_basemap@data$id = rownames(usa_basemap@data)
 #get sentiment for each state
-#check for spatial overlap - http://www.nickeubank.com/wp-content/uploads/2015/10/RGIS2_MergingSpatialData_part1_Joins.html#spatial-spatial
+#check for spatial overlap
 spider_tweets_sentiment2 <- aggregate(spider_tweets_sentiment$stringsentiment, by=list(Category=spider_tweets_sentiment$stateinUSA), FUN=mean)
 spider_tweets_sentiment2$stateinUSA <- spider_tweets_sentiment2$Category
 spider_tweets_sentiment2$statesentiment <- spider_tweets_sentiment2$x
@@ -286,6 +286,7 @@ plotinterestandsentiment2 <- ggplot(spider_tweets_sentiment2, aes(x = statesenti
   labs(x = "Mean state sentiment", 
          y = "% interest for 'spider'", 
          title = "Mean sentiment by state vs. Google Search interest for 'spider'") +
+        annotate("text", x = -0.4, y = 91.5, label = "f = 6.89") +
         annotate("text", x = -0.4, y = 90, label = "p = 0.01") +
         annotate("text", x = -0.4, y = 88.5, label = "mean(x) = -0.14")
 plotinterestandsentiment2
