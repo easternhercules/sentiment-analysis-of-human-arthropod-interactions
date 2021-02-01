@@ -1,7 +1,7 @@
 # Sentiment Analysis of Human-Arthropod Interactions
 
 ## Purpose
-These are the .rmds containing the code used in my Master's thesis, *Sentiment Analysis of Human-Arthropod Interactions (2021)*.
+These are the .rmds containing the code used in my Master's thesis, *Sentiment Analysis of Human-Arthropod Interactions (2021)*. .jp2 format figures are collected in figures.zip.
 
 ## Requirements
 * [Census API key](https://api.census.gov/data/key_signup.html)
