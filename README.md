@@ -5,9 +5,9 @@ These are the .rmds containing the code used in my Master's thesis, *Sentiment A
 
 ## Requirements
 * [Census API key](https://api.census.gov/data/key_signup.html)
-* iNaturalist account
-* Twitter account with developer access + premium API subscription + designated dev environment
-* R + relevant libraries and dependencies
+* [iNaturalist](https://www.inaturalist.org/) account
+* [Twitter](https://twitter.com/) account with developer access + premium API subscription + designated dev environment
+* [R](https://www.r-project.org/) + [RStudio](https://rstudio.com/) + relevant libraries and dependencies
 * [GeoDa](https://geodacenter.github.io/)
 
 ## Summary of steps
