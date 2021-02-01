@@ -111,7 +111,7 @@ coordinates(obs_interest) <- ~longitude+latitude
 proj4string(obs_interest) <- CRS(WGS84_proj)
 usa_basemap <- getData('GADM', country='USA', level=1)
 usa_basemap <- spTransform(usa_basemap, CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
-#check for spatial overlap - http://www.nickeubank.com/wp-content/uploads/2015/10/RGIS2_MergingSpatialData_part1_Joins.html#spatial-spatial
+#check for spatial overlap
 obs2 <- point.in.poly(obs_interest, usa_basemap)
 obs2$stateinUSA <- obs2$NAME_1
 obs2$stateinUSAabbr <- substring(obs2$HASC_1,4,5)
@@ -228,6 +228,7 @@ plotobsandtotalobs <- ggplot(obs2@data, aes(x = normcount, y = totalobscount)) +
   labs(x = "% of total observations that are medically-important", 
          y = "Total spider (order Araneae) observations", 
          title = "Medically-important spiders vs. total spiders per state") +
+        annotate("text", x = 20, y = 15000, label = "f = 0.31") +
         annotate("text", x = 20, y = 10000, label = "p = 0.58") +
         annotate("text", x = 20, y = 6500, label = "mean(x) = 4.04")
 plotobsandtotalobs + scale_y_continuous(trans = 'log10')
@@ -242,45 +243,17 @@ for(i in 1:nrow(obsperstate_joined)) {
     i+1
   }
 }
-#normalize medically-important spider observations by state population
-#get ACS data
-#v18 <- load_variables(2018, "acs5", cache = TRUE)
-#v18
-#pop <- get_acs(geography = "state", variables = "B01003_001", year = 2018, geometry = FALSE)
-#pop$stateinUSA <- pop$NAME
-#pop$estpop <- pop$estimate
-#pop <- subset(pop, select=-c(NAME, estimate, GEOID, variable, moe))
-#calculate for observations per state
-#obsperstate_joined <- left_join(obsperstate_joined, pop, by = "stateinUSA")
-#remove(v18, pop)
-#obsperstate_joined$normcount2 <- NA
-#for(i in 1:nrow(obsperstate_joined)) {
-#  if(is.na(obsperstate_joined$normcount2[i])){
-#  obsperstate_joined$normcount2[i] <- ((obsperstate_joined$totalobscount[i]/obsperstate_joined$estpop[i]) * 100000)
-#  }
-#  else
-#  {
-#    i+1
-#  }
-#}
 #round
 obsperstate_joined$normcount <- format(round(obsperstate_joined$normcount, 2), nsmall = 2)
 obsperstate_joined$normcount <- as.numeric(obsperstate_joined$normcount)
-#obsperstate_joined$normcount2 <- format(round(obsperstate_joined$normcount2, 2), nsmall = 2)
-#obsperstate_joined$normcount2 <- as.numeric(obsperstate_joined$normcount2)
-#order by percentage of medically-important observations
-#col_order <- c("stateinUSA", "obscount", "totalobscount", "normcount", "estpop", #"normcount2")
-#obsperstate_joined <- obsperstate_joined[, col_order]
-#obsperstate_joined <- obsperstate_joined[order(-obsperstate_joined$normcount),]
-#remove(col_order)
 #stats
-#obsandtotalobs.aov <- aov(formula = totalobscount ~ normcount,
-#                   data = obsperstate_joined)
-#obsandtotalobs.lm <- lm(formula = totalobscount ~ normcount,
-#                   data = obsperstate_joined)
-#summary(obsandtotalobs.aov)
-#summary(obsandtotalobs.lm)
-#mean(obsperstate_joined$normcount)
+obsandtotalobs.aov <- aov(formula = totalobscount ~ normcount,
+                   data = obsperstate_joined)
+obsandtotalobs.lm <- lm(formula = totalobscount ~ normcount,
+                   data = obsperstate_joined)
+summary(obsandtotalobs.aov)
+summary(obsandtotalobs.lm)
+mean(obsperstate_joined$normcount)
 #export
 write.csv(obsperstate_joined, here::here("obsperstate_joined.csv"), row.names = FALSE)
 ```
