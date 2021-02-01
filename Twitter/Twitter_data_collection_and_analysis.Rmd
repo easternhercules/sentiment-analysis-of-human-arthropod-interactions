@@ -187,7 +187,6 @@ for(i in 1:nrow(spider_tweets_nodup)) {
 #clean up
 spider_tweets <- spider_tweets_nodup
 remove(spider_tweets_nodup)
-#started at 46070 observations -> ended at 46026
 ```
 
 ```{r spiderheroes}
@@ -217,7 +216,6 @@ spider_tweets_noheroes <- subset(spider_tweets,
 spider_tweets_noheroes2 <- subset(spider_tweets_noheroes, select=-c(grepl1, grepl2, grepl3, grepl4, grepl5, grepl6, grepl7, grepl8, grepl9, grepl10))
 spider_tweets <- spider_tweets_noheroes2
 remove(spider_tweets_noheroes, spider_tweets_noheroes2)
-#started at 46026 observations -> ended at 45181
 ```
 
 ```{r coords}
@@ -234,7 +232,6 @@ table(is.na(spider_tweets_sep$lon))
 table(is.na(spider_tweets_sep$lat))
 spider_tweets_sep$isna <- is.na(spider_tweets_sep$lon)
 spider_tweets_nonacoords <- subset(spider_tweets_sep, spider_tweets_sep$isna != "TRUE")
-#started at 45181 observations -> ended at 45150
 #clean up
 spider_tweets <- spider_tweets_nonacoords
 spider_tweets <- subset(spider_tweets, select = -c(isna))
@@ -285,7 +282,7 @@ usa_basemap <- getData('GADM', country='USA', level=1)
 usa_basemap2 <- subset(usa_basemap, select=-c(GID_0, NAME_0, GID_1, VARNAME_1, NL_NAME_1, TYPE_1, ENGTYPE_1, CC_1, HASC_1))
 usa_basemap <- usa_basemap2
 remove(usa_basemap2)
-#check for spatial overlap - http://www.nickeubank.com/wp-content/uploads/2015/10/RGIS2_MergingSpatialData_part1_Joins.html#spatial-spatial
+#check for spatial overlap
 spider_tweets_reordered$stateinUSA <- over(spider_tweets_reordered, usa_basemap)
 #clean up
 spider_tweets_reordered2 <- bind_cols(spider_tweets_reordered@data, spider_tweets_reordered@data[["stateinUSA"]])
@@ -306,7 +303,6 @@ spider_tweets_nomonkeys <- subset(spider_tweets_reordered,
 spider_tweets_nomonkeys2 <- subset(spider_tweets_nomonkeys, select=-c(grepl1))
 spider_tweets_reordered <- spider_tweets_nomonkeys2
 remove(spider_tweets_nomonkeys, spider_tweets_nomonkeys2)
-#started at 45150 observations -> ended at 44580
 ```
 
 ```{r locatedexport}
@@ -486,7 +482,6 @@ spider_tweets_nolongreplies <- subset(spider_tweets_reordered, spider_tweets_reo
 spider_tweets_nolongreplies2 <- subset(spider_tweets_nolongreplies, select=-c(grepltri, grepltri2, grepltri3, grepltri4, grepltri5, grepltri6))
 spider_tweets_reordered <- spider_tweets_nolongreplies2
 remove(spider_tweets_nolongreplies, spider_tweets_nolongreplies2)
-#started at 44470 observations -> ended at 44275
 ```
 
 ```{r fixedexport}
@@ -587,7 +582,7 @@ mean(posneg[["data"]]$n)
 ```
 
 ```{r bingsentiment}
-#get sentiments - https://uc-r.github.io/sentiment_analysis, https://rdrr.io/cran/lexicon/man/hash_sentiment_sentiword.html
+#get sentiments
 bing <- get_sentiments("bing")
 names(spider_tweets_clean)[names(spider_tweets_clean) == "Token"] <- "word"
 #add sentiment for each unique word
@@ -635,7 +630,7 @@ remove(neg)
 bing <- subset(bing, select=-c(sentiment))
 names(bing)[names(bing) == "word"] <- "x"
 names(bing)[names(bing) == "a"] <- "y"
-#string sentiment - https://rdrr.io/github/nrguimaraes/sentimentSetsR/man/getCustomSentiment.html
+#string sentiment
 spider_tweets_reordered@data$stringsentiment <- 99999
 for(i in 1:nrow(spider_tweets_reordered@data)) {
   if(spider_tweets_reordered@data$stringsentiment[i] == 99999){
@@ -770,7 +765,6 @@ save_as_csv(spider_tweets_sentiment@data, here::here("data", "spiders06062020BIG
 ```{r stats}
 #calculate statistics
 #positive/negative tweet sentiment
-#http://www.r-tutor.com/elementary-statistics/quantitative-data/frequency-distribution-quantitative-data
 stringsentiment <- spider_tweets_sentiment@data$stringsentiment
 t.test(stringsentiment, mu = 0, alternative = "two.sided")
 #positive/negative tweet likes
@@ -816,7 +810,7 @@ usa_basemap <- usa_basemap2
 remove(usa_basemap2)
 usa_basemap@data$id = rownames(usa_basemap@data)
 #get sentiment for each state
-#check for spatial overlap - http://www.nickeubank.com/wp-content/uploads/2015/10/RGIS2_MergingSpatialData_part1_Joins.html#spatial-spatial
+#check for spatial overlap
 spider_tweets_sentiment2 <- aggregate(spider_tweets_sentiment$stringsentiment, by=list(Category=spider_tweets_sentiment$stateinUSA), FUN=mean)
 spider_tweets_sentiment2$stateinUSA <- spider_tweets_sentiment2$Category
 spider_tweets_sentiment2$statesentiment <- spider_tweets_sentiment2$x
@@ -836,8 +830,7 @@ writeOGR(obj=usa_basemap, dsn=here::here("data", "meanchangesentimentshp"), laye
 usa_basemap.points = fortify(usa_basemap)
 knitr::opts_chunk$set(cache = TRUE, warning = FALSE,message = FALSE, cache.lazy = FALSE)
 usa_basemap.df = inner_join(usa_basemap.points, usa_basemap@data, by="id")
-#aggregate
-#plot tweets with sentiment as polygons
+#set color scale
 colors <- brewer.pal(7, "RdBu")
 colors[4] <- "gray85"
 #map change between overall and state means
