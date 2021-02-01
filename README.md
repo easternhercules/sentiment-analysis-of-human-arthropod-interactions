@@ -46,7 +46,7 @@ These are the .rmds containing the code used in my Master's thesis, *Sentiment A
 
 * Combination
 
-1. For multi-layered analysis, you can overlay the results from processing the iNaturalist data and the Twitter data. You can also choose to incorporate Google Trends data
+1. For multi-layered analysis, you can overlay the results from processing the iNaturalist data and the Twitter data. You can also choose to incorporate [Google Trends](https://trends.google.com/) data
 
 In the future these steps might change to require more/less due to addition or deprecation of various features or attributes by Twitter post-v1.1 API.
 
