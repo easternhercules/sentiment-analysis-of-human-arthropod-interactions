@@ -25,8 +25,8 @@ library(ggsn)
 library(dplyr)
 library(extrafont)
 library(spatialEco)
-here::set_here("tweet_distribution_comparison")
-here::here("tweet_distribution_comparison")
+#here::set_here("tweet_distribution_comparison")
+here::here()
 options(digits=5)
 ```
 
@@ -126,6 +126,10 @@ map_obsvsnegtweets <- ggplot() +
   annotation_scale(location = "br", line_width = 0.5) + 
   theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.title = element_blank(), legend.background=element_blank()) 
 map_obsvsnegtweets
+#observations per state vs. 1000 most-retweeted tweets
+a <- spider_tweets_sentiment@data[order(spider_tweets_sentiment@data$retweet_count, decreasing = TRUE), ]
+mostrtedtweets <- a[1:1000,]
+remove(a)
 ```
 
 ```{r mapspecies}
@@ -178,11 +182,8 @@ mean(obsperstate_joined$observations)
 posrtssum <- aggregate(retweet_count ~ stateinUSA, postweets, sum)
 obsandposrts <- inner_join(obsperstate_joined, posrtssum, by="stateinUSA")
 #calculate statistics
-obsandposrts.aov <- aov(formula = retweet_count ~ observations,
-                   data = obsandposrts)
 obsandposrts.lm <- lm(formula = retweet_count ~ observations,
                    data = obsandposrts)
-summary(obsandposrts.aov)
 summary(obsandposrts.lm)
 mean(obsandposrts$observations)
 mean(obsandposrts$retweet_count)
@@ -199,6 +200,7 @@ plotpos <- ggplot(obsandposrts, aes(x = observations, y = retweet_count)) +
   labs(x = "% of total observations that are medically-important", 
          y = "Retweets", 
          title = "Medically-important observations vs. 1000 most retweeted positive spider tweets") +
+  annotate("text", x = 17.5, y = 55, label = "f = 0.66") +
   annotate("text", x = 17.5, y = 50, label = "p = 0.42") +
   annotate("text", x = 17.5, y = 45, label = "mean(x) = 4.04, mean(y) = 7.60")
 plotpos
@@ -220,6 +222,7 @@ usa_basemap$stateinUSA <- usa_basemap$NAME_1
 usa_basemap$stateinUSAabbr <- substring(usa_basemap$HASC_1,4,5)
 usa_basemap <- subset(usa_basemap, select=c(stateinUSA, stateinUSAabbr))
 obsandnegrts <- left_join(obsandnegrts, usa_basemap@data, by = "stateinUSA")
+#plot
 plotneg <- ggplot(obsandnegrts, aes(x = observations, y = retweet_count)) + 
   geom_point(col="#ffcccb") +
   geom_text(label=obsandnegrts$stateinUSAabbr) +
@@ -227,7 +230,46 @@ plotneg <- ggplot(obsandnegrts, aes(x = observations, y = retweet_count)) +
   labs(x = "% of total observations that are medically-important", 
          y = "Retweets", 
          title = "Medically-important observations vs. 1000 most retweeted negative spider tweets") +
+  annotate("text", x = 17.5, y = 550, label = "f = 0.05") +
   annotate("text", x = 17.5, y = 500, label = "p = 0.82") +
   annotate("text", x = 17.5, y = 450, label = "mean(x) = 4.11, mean(y) = 22.67")
 plotneg
+#observations per state vs. average sentiment of most-retweeted tweets
+mostrtsmean <- aggregate(stringsentiment ~ stateinUSA, mostrtedtweets, mean)
+obsandmostrts <- right_join(obsperstate_joined, mostrtsmean, by="stateinUSA")
+for(i in 1:nrow(obsandmostrts)) {
+  if(is.na(obsandmostrts$observations[i] == TRUE)){
+  obsandmostrts$observations[i] <- "0"
+  }
+  else
+  {
+    i+1
+  }
+}
+obsandmostrts$observations <- as.numeric(obsandmostrts$observations)
+#calculate statistics
+obsandmostrts.lm <- lm(formula = stringsentiment ~ observations,
+                   data = obsandmostrts)
+summary(obsandmostrts.lm)
+mean(obsandmostrts$stringsentiment)
+mean(obsandmostrts$observations)
+#get state abbreviations
+usa_basemap <- getData('GADM', country='USA', level=1)
+usa_basemap$stateinUSA <- usa_basemap$NAME_1
+usa_basemap$stateinUSAabbr <- substring(usa_basemap$HASC_1,4,5)
+usa_basemap <- subset(usa_basemap, select=c(stateinUSA, stateinUSAabbr))
+obsandmostrts <- left_join(obsandmostrts, usa_basemap@data, by = "stateinUSA")
+#plot
+plotmostrts <- ggplot(obsandmostrts, aes(x = observations, y = stringsentiment)) + 
+  geom_point(col="#90ee90") +
+  geom_text(label=obsandmostrts$stateinUSAabbr) +
+  stat_smooth(method = "lm", col = "green") +
+  labs(x = "% of total observations that are medically-important", 
+         y = "Average sentiment", 
+         title = "Medically-important observations vs. sentiment of most-retweeted spider tweets") +
+  ylim(-1, 1) +
+  annotate("text", x = 19, y = 0.9, label = "f = 1.19") +
+  annotate("text", x = 19, y = 0.75, label = "p = 0.281") +
+  annotate("text", x = 19, y = 0.60, label = "mean(x) = 3.26, mean(y) = 0.11")
+plotmostrts
 ```
